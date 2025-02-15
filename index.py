@@ -79,9 +79,17 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
 
     # Define a function to build chart, call the Gemini API and return structured result
     def analyze_ticker(ticker, data):  # Defines a function to analyze a single stock ticker
+        data = yf.download(ticker, start=start_date, end=end_date)
+
+        # --- Debugging: Print the raw DataFrame ---
+        st.write("### Raw Data from yfinance:")
+        st.dataframe(data)  # Use st.dataframe for better display in Streamlit
+        # --- End Debugging ---
         # ticker: stock symbol (string)
         # data: pandas DataFrame containing stock data for the ticker
-
+        if data.empty: # Keep the existing check for empty data
+            st.warning(f"No data found for {ticker}.")
+            return None, {"action": "Error", "justification": "No data fetched from yfinance"} # Return None for fig
         # Build candlestick chart for the given ticker's data
         fig = go.Figure(data=[  # Creates a Plotly Figure object to hold the chart
             go.Candlestick(  # Creates a Candlestick trace for the stock price data
