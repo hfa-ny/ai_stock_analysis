@@ -12,12 +12,6 @@ import os  # os for interacting with the operating system (e.g., deleting tempor
 import json  # json for working with JSON data (expected response format from Gemini)
 from datetime import datetime, timedelta  # datetime and timedelta for date and time calculations
 
-# Add this function at the top of your file
-def get_valid_trading_days(start_date, end_date):
-    """Calculate the expected number of trading days between two dates."""
-    business_days = pd.date_range(start=start_date, end=end_date, freq='B')
-    return len(business_days)
-
 # Configure the API key - IMPORTANT: Use Streamlit secrets or environment variables for security
 # For now, using hardcoded API key - REPLACE WITH YOUR ACTUAL API KEY SECURELY
 # In a production environment, it's highly recommended to use Streamlit secrets or environment variables
@@ -63,83 +57,21 @@ indicators = st.sidebar.multiselect(  # Creates a multiselect widget in the side
     default=["20-Day SMA"]  # Default selected indicator(s) - in this case, "20-Day SMA"
 )
 
-# Modify the date range setup
-end_date_default = datetime.today()
-start_date_default = end_date_default - timedelta(days=365)
-
-# Add debug information for dates
-st.sidebar.write("Debug Date Information:")
-st.sidebar.write(f"Start Date: {start_date}")
-st.sidebar.write(f"End Date: {end_date}")
-
-# Modify the date handling
-end_date_default = datetime.today().replace(hour=23, minute=59, second=59)
-start_date_default = (end_date_default - timedelta(days=365)).replace(hour=0, minute=0, second=0)
-
-# Modify the data fetching part
-if st.sidebar.button("Fetch Data"):
-    stock_data = {}
-    with st.spinner("Fetching stock data..."):
-        for ticker in tickers:
-            try:
-                # Convert dates to string format YYYY-MM-DD
-                start_date_str = start_date.strftime('%Y-%m-%d')
-                end_date_str = end_date.strftime('%Y-%m-%d')
-                
-                # Add debug information
-                st.write(f"Fetching {ticker} data from {start_date_str} to {end_date_str}")
-                
-                # Fetch data with explicit parameters
-                data = yf.download(
-                    ticker,
-                    start=start_date_str,
-                    end=(end_date + timedelta(days=1)).strftime('%Y-%m-%d'),  # Add one day to include end date
-                    interval="1d",
-                    progress=False
-                )
-                
-                # Debug information about fetched data
-                st.write(f"Fetched {len(data)} rows of data for {ticker}")
-                st.write(f"Date range: {data.index.min()} to {data.index.max()}")
-                
-                # Clean and validate data
-                if not data.empty:
-                    # Remove any NaN values
-                    data = data.dropna()
-                    if len(data) > 0:
-                        if len(data) < get_valid_trading_days(start_date, end_date) * 0.8:  # 80% threshold
-                            st.warning(f"Retrieved fewer trading days than expected for {ticker}. " 
-                                      f"Expected ~{get_valid_trading_days(start_date, end_date)} trading days, "
-                                      f"got {len(data)} days.")
-                        stock_data[ticker] = data
-                        st.success(f"Successfully loaded data for {ticker}")
-                    else:
-                        st.warning(f"No valid data points found for {ticker} after cleaning")
-                else:
-                    st.warning(f"No data found for {ticker}")
-                    
-                # Inside the Fetch Data button code, after successful data fetch
-                if not data.empty:
-                    # Debug information
-                    st.write("### Detailed Data Information:")
-                    st.write(f"First date: {data.index.min()}")
-                    st.write(f"Last date: {data.index.max()}")
-                    st.write(f"Number of trading days: {len(data)}")
-                    st.write(f"Data frequency: {pd.infer_freq(data.index)}")
-                    st.write("### Missing dates check:")
-                    date_range = pd.date_range(start=data.index.min(), end=data.index.max(), freq='B')
-                    missing_dates = date_range.difference(data.index)
-                    if len(missing_dates) > 0:
-                        st.write("Missing trading days:", missing_dates)
-                    
-            except Exception as e:
-                st.error(f"Error fetching data for {ticker}: {str(e)}")
-                
-    if stock_data:
-        st.session_state["stock_data"] = stock_data
-        st.success("Stock data loaded successfully for: " + ", ".join(stock_data.keys()))
-    else:
-        st.error("No valid data was loaded for any ticker")
+# Button to fetch data for all tickers - Button to trigger data fetching and analysis
+if st.sidebar.button("Fetch Data"):  # Creates a button in the sidebar labeled "Fetch Data". Code inside this 'if' block executes when the button is clicked.
+    stock_data = {}  # Initializes an empty dictionary to store stock data for each ticker
+    for ticker in tickers:  # Loops through each ticker symbol in the 'tickers' list
+        # Download data for each ticker using yfinance
+        data = yf.download(ticker, start=start_date, end=end_date)  # Downloads historical stock data using yfinance
+        # ticker: stock symbol, start: start date, end: end date
+        if not data.empty:  # Checks if the downloaded data DataFrame is not empty (data was successfully fetched)
+            stock_data[ticker] = data  # Stores the downloaded data in the 'stock_data' dictionary with the ticker as the key
+        else:
+            st.warning(f"No data found for {ticker}.")  # Displays a warning message in the Streamlit app if no data is found for a ticker
+    st.session_state["stock_data"] = stock_data  # Stores the 'stock_data' dictionary in Streamlit's session state
+    # Session state allows variables to persist across user interactions within the app.
+    st.success("Stock data loaded successfully for: " + ", ".join(stock_data.keys()))  # Displays a success message after data loading
+    # Lists the tickers for which data was successfully loaded.
 
 # Ensure we have data to analyze - Conditional execution of analysis and charting only if stock data is loaded
 if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Checks if 'stock_data' exists in session state and is not empty
@@ -147,40 +79,17 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
 
     # Define a function to build chart, call the Gemini API and return structured result
     def analyze_ticker(ticker, data):  # Defines a function to analyze a single stock ticker
-        # First, clean the data by removing NaN values
-        data = data.dropna()
+        data = yf.download(ticker, start=start_date, end=end_date)
 
-        # Enhanced debug information
-        st.write(f"### Data Information for {ticker}:")
-        st.write(f"Total rows: {len(data)}")
-        st.write(f"Date range: {data.index.min()} to {data.index.max()}")
-        st.write(f"Trading days: {len(data)} out of {get_valid_trading_days(start_date, end_date)} possible trading days")
-        
-        # Show more rows in the preview (adjust the number as needed)
-        st.write("### Sample of the data (first 10 rows):")
-        st.dataframe(data.head(10))
-        
-        # Show summary statistics
-        st.write("### Data Summary Statistics:")
-        st.dataframe(data.describe())
-
-        # Check if data is empty after cleaning
-        if data.empty:
-            st.warning(f"No valid data found for {ticker} after cleaning.")
-            return None, {"action": "Error", "justification": "No valid data after cleaning NaN values"}
-
-        # Add debug information
-        st.write(f"### Data Shape for {ticker}: {data.shape}")
-        st.write("### First few rows of cleaned data:")
-        st.dataframe(data.head())
-
-        # Check if required columns exist
-        required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
-        if not all(col in data.columns for col in required_columns):
-            missing_cols = [col for col in required_columns if col not in data.columns]
-            st.error(f"Missing required columns for {ticker}: {missing_cols}")
-            return None, {"action": "Error", "justification": f"Missing required columns: {missing_cols}"}
-
+        # --- Debugging: Print the raw DataFrame ---
+        st.write("### Raw Data from yfinance:")
+        st.dataframe(data)  # Use st.dataframe for better display in Streamlit
+        # --- End Debugging ---
+        # ticker: stock symbol (string)
+        # data: pandas DataFrame containing stock data for the ticker
+        if data.empty: # Keep the existing check for empty data
+            st.warning(f"No data found for {ticker}.")
+            return None, {"action": "Error", "justification": "No data fetched from yfinance"} # Return None for fig
         # Build candlestick chart for the given ticker's data
         fig = go.Figure(data=[  # Creates a Plotly Figure object to hold the chart
             go.Candlestick(  # Creates a Candlestick trace for the stock price data
@@ -194,86 +103,28 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
         ])
 
         # Add selected technical indicators - Nested function to add indicators to the chart
-        def add_indicator(indicator):
-            try:
-                if indicator == "20-Day SMA":
-                    sma = data['Close'].rolling(window=20).mean()
-                    if len(sma) > 0:  # Simple length check
-                        fig.add_trace(go.Scatter(
-                            x=data.index,
-                            y=sma,
-                            mode='lines',
-                            name='SMA (20)',
-                            line=dict(color='blue')
-                        ))
-                        
-                elif indicator == "20-Day EMA":
-                    ema = data['Close'].ewm(span=20, adjust=False).mean()
-                    if len(ema) > 0:  # Simple length check
-                        fig.add_trace(go.Scatter(
-                            x=data.index,
-                            y=ema,
-                            mode='lines',
-                            name='EMA (20)',
-                            line=dict(color='orange')
-                        ))
-                        
-                elif indicator == "20-Day Bollinger Bands":
-                    bb_sma = data['Close'].rolling(window=20).mean()
-                    bb_std = data['Close'].rolling(window=20).std()
-                    bb_upper = bb_sma + (bb_std * 2)
-                    bb_lower = bb_sma - (bb_std * 2)
-                    
-                    if len(bb_sma) > 0:  # Simple length check
-                        fig.add_trace(go.Scatter(
-                            x=data.index,
-                            y=bb_upper,
-                            mode='lines',
-                            name='BB Upper',
-                            line=dict(color='gray', dash='dash')
-                        ))
-                        fig.add_trace(go.Scatter(
-                            x=data.index,
-                            y=bb_lower,
-                            mode='lines',
-                            name='BB Lower',
-                            line=dict(color='gray', dash='dash')
-                         ))
-                        fig.add_trace(go.Scatter(
-                            x=data.index,
-                            y=bb_sma,
-                            mode='lines',
-                            name='BB Middle',
-                            line=dict(color='gray')
-                        ))
-                        
-                elif indicator == "VWAP":
-                    # Calculate VWAP
-                    typical_price = (data['High'] + data['Low'] + data['Close']) / 3
-                    cumulative_tp_vol = (typical_price * data['Volume']).cumsum()
-                    cumulative_vol = data['Volume'].cumsum()
-                    vwap = cumulative_tp_vol / cumulative_vol
-                    
-                    if len(vwap) > 0:  # Simple length check
-                        fig.add_trace(go.Scatter(
-                            x=data.index,
-                            y=vwap,
-                            mode='lines',
-                            name='VWAP',
-                            line=dict(color='purple')
-                        ))
-                        
-            except Exception as e:
-                st.warning(f"Error adding indicator {indicator}: {str(e)}")
+        def add_indicator(indicator):  # Defines a nested function to add a specific technical indicator to the chart
+            if indicator == "20-Day SMA":  # Simple Moving Average (SMA)
+                sma = data['Close'].rolling(window=20).mean()  # Calculates 20-day SMA of the 'Close' prices
+                fig.add_trace(go.Scatter(x=data.index, y=sma, mode='lines', name='SMA (20)'))  # Adds SMA as a line trace to the chart
+            elif indicator == "20-Day EMA":  # Exponential Moving Average (EMA)
+                ema = data['Close'].ewm(span=20).mean()  # Calculates 20-day EMA of the 'Close' prices
+                fig.add_trace(go.Scatter(x=data.index, y=ema, mode='lines', name='EMA (20)'))  # Adds EMA as a line trace to the chart
+            elif indicator == "20-Day Bollinger Bands":  # Bollinger Bands
+                sma = data['Close'].rolling(window=20).mean()  # Calculates 20-day SMA (for the middle band)
+                std = data['Close'].rolling(window=20).std()  # Calculates 20-day Standard Deviation
+                bb_upper = sma + 2 * std  # Upper Bollinger Band (SMA + 2*STD)
+                bb_lower = sma - 2 * std  # Lower Bollinger Band (SMA - 2*STD)
+                fig.add_trace(go.Scatter(x=data.index, y=bb_upper, mode='lines', name='BB Upper'))  # Adds Upper Bollinger Band as a line trace
+                fig.add_trace(go.Scatter(x=data.index, y=bb_lower, mode='lines', name='BB Lower'))  # Adds Lower Bollinger Band as a line trace
+            elif indicator == "VWAP":  # Volume Weighted Average Price (VWAP)
+                data['VWAP'] = (data['Close'] * data['Volume']).cumsum() / data['Volume'].cumsum()  # Calculates VWAP
+                # (Cumulative sum of (Close * Volume)) / (Cumulative sum of Volume)
+                fig.add_trace(go.Scatter(x=data.index, y=data['VWAP'], mode='lines', name='VWAP'))  # Adds VWAP as a line trace
 
         for ind in indicators:  # Loops through the list of selected indicators
             add_indicator(ind)  # Calls the add_indicator function for each selected indicator to add it to the chart
-        fig.update_layout(
-            title=f"{ticker} Stock Price",
-            yaxis_title="Price",
-            xaxis_title="Date",
-            xaxis_rangeslider_visible=False
-        )
+        fig.update_layout(xaxis_rangeslider_visible=False)  # Hides the range slider below the x-axis for a cleaner chart
 
         # Save chart as temporary PNG file and read image bytes - Prepare chart image for Gemini API
         with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:  # Creates a temporary file to save the chart image
