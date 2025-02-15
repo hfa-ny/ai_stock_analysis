@@ -2,6 +2,7 @@
 
 # Libraries - Importing necessary Python libraries
 import streamlit as st  # Streamlit for creating the web application interface
+import google.generativeai as genai
 import yfinance as yf  # yfinance to download historical stock market data from Yahoo Finance
 import pandas as pd  # pandas for data manipulation and analysis (DataFrames)
 import plotly.graph_objects as go  # plotly for creating interactive charts, specifically candlestick charts
@@ -15,8 +16,8 @@ from datetime import datetime, timedelta  # datetime and timedelta for date and 
 # For now, using hardcoded API key - REPLACE WITH YOUR ACTUAL API KEY SECURELY
 # In a production environment, it's highly recommended to use Streamlit secrets or environment variables
 # to avoid hardcoding sensitive information directly in the code.
-GOOGLE_API_KEY = "your api key goes here"  # Replace "your api key goes here" with your actual Google API key
-genai.configure(api_key=GOOGLE_API_KEY)  # Configure the Gemini API with your API key
+# GOOGLE_API_KEY = "your api key goes here"  # Replace "your api key goes here" with your actual Google API key
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])  # Configure the Gemini API with your API key
 
 # Select the Gemini model - using 'gemini-2.0-flash' as a general-purpose model
 MODEL_NAME = 'gemini-2.0-flash'  # Specifies the Gemini model to be used. You can choose other models if available.
