@@ -72,16 +72,25 @@ if st.sidebar.button("Fetch Data"):  # Creates a button in the sidebar labeled "
     # Session state allows variables to persist across user interactions within the app.
     st.success("Stock data loaded successfully for: " + ", ".join(stock_data.keys()))  # Displays a success message after data loading
     # Lists the tickers for which data was successfully loaded.
+
 # Ensure we have data to analyze - Conditional execution of analysis and charting only if stock data is loaded
 if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Checks if 'stock_data' exists in session state and is not empty
     # This ensures that the following code runs only after stock data has been successfully fetched.
 
     # Define a function to build chart, call the Gemini API and return structured result
     def analyze_ticker(ticker, data):  # Defines a function to analyze a single stock ticker
-        
+        # Remove the line that re-downloads the data
+        # data = yf.download(ticker, start=start_date, end=end_date)
+
+        # --- Debugging: Print the raw DataFrame ---
+        st.write("### Raw Data from yfinance:")
+        st.dataframe(data)  # Use st.dataframe for better display in Streamlit
+        # --- End Debugging ---
         # ticker: stock symbol (string)
         # data: pandas DataFrame containing stock data for the ticker
-
+        if data.empty: # Keep the existing check for empty data
+            st.warning(f"No data found for {ticker}.")
+            return None, {"action": "Error", "justification": "No data fetched from yfinance"} # Return None for fig
         # Build candlestick chart for the given ticker's data
         fig = go.Figure(data=[  # Creates a Plotly Figure object to hold the chart
             go.Candlestick(  # Creates a Candlestick trace for the stock price data
