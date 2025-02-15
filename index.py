@@ -168,6 +168,27 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 )
                 return empty_fig, {"action": "Error", "justification": "No data fetched from yfinance"}
 
+            # Add this before creating the chart
+            if selected_time_frame in ["5min", "15min", "1hour"]:
+                # Remove outliers
+                Q1 = data['Close'].quantile(0.25)
+                Q3 = data['Close'].quantile(0.75)
+                IQR = Q3 - Q1
+                lower_bound = Q1 - 1.5 * IQR
+                upper_bound = Q3 + 1.5 * IQR
+
+                # Filter out extreme values
+                data = data[
+                    (data['Close'] >= lower_bound) & 
+                    (data['Close'] <= upper_bound)
+                ]
+
+                # Forward fill small gaps
+                data = data.fillna(method='ffill', limit=3)
+
+                # Remove any remaining NaN values
+                data = data.dropna()
+
             # Build candlestick chart with logarithmic scale
             fig = go.Figure(data=[
                 go.Candlestick(
