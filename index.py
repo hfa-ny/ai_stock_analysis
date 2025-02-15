@@ -91,44 +91,6 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
         if data.empty: # Keep the existing check for empty data
             st.warning(f"No data found for {ticker}.")
             return None, {"action": "Error", "justification": "No data fetched from yfinance"} # Return None for fig
-
-        # Additional debugging: Print the first few rows of the data
-        st.write(f"### Data for {ticker}:")
-        st.write(data.head())  # Print the first few rows of the data
-
-        # Check for NaN values in the data
-        st.write("### Checking for NaN values:")
-        st.write(data.isna().sum())  # Print the count of NaN values in each column
-
-        # Check for zeros in the data
-        st.write("### Checking for zeros:")
-        st.write((data == 0).sum())  # Print the count of zeros in each column
-
-        # Print rows containing NaN values
-        st.write("### Rows with NaN values:")
-        st.write(data[data.isna().any(axis=1)])
-
-        # Print rows containing zeros
-        st.write("### Rows with zeros:")
-        st.write(data[(data == 0).any(axis=1)])
-
-        # Handle NaN values by filling them with the previous value (forward fill)
-        data.fillna(method='ffill', inplace=True)
-        data.fillna(method='bfill', inplace=True)  # Backward fill if forward fill doesn't work
-
-        # Handle zeros by replacing them with NaN and then filling them
-        data.replace(0, pd.NA, inplace=True)
-        data.fillna(method='ffill', inplace=True)
-        data.fillna(method='bfill', inplace=True)
-
-        # Re-check for NaN values after handling
-        st.write("### Checking for NaN values after handling:")
-        st.write(data.isna().sum())
-
-        # Re-check for zeros after handling
-        st.write("### Checking for zeros after handling:")
-        st.write((data == 0).sum())
-
         # Build candlestick chart for the given ticker's data
         fig = go.Figure(data=[  # Creates a Plotly Figure object to hold the chart
             go.Candlestick(  # Creates a Candlestick trace for the stock price data
