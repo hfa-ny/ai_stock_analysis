@@ -1,6 +1,6 @@
-streamlit
-yfinance
-pandas
-plotly
-google-generativeai
-kaleido  
+streamlit==1.42.0
+yfinance==0.2.40
+pandas==2.2.3
+plotly==6.0.0
+google-generativeai==0.8.4
+kaleido==0.2.1
