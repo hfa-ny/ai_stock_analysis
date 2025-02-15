@@ -12,6 +12,12 @@ import os  # os for interacting with the operating system (e.g., deleting tempor
 import json  # json for working with JSON data (expected response format from Gemini)
 from datetime import datetime, timedelta  # datetime and timedelta for date and time calculations
 
+# Add this function at the top of your file
+def get_valid_trading_days(start_date, end_date):
+    """Calculate the expected number of trading days between two dates."""
+    business_days = pd.date_range(start=start_date, end=end_date, freq='B')
+    return len(business_days)
+
 # Configure the API key - IMPORTANT: Use Streamlit secrets or environment variables for security
 # For now, using hardcoded API key - REPLACE WITH YOUR ACTUAL API KEY SECURELY
 # In a production environment, it's highly recommended to use Streamlit secrets or environment variables
@@ -57,26 +63,54 @@ indicators = st.sidebar.multiselect(  # Creates a multiselect widget in the side
     default=["20-Day SMA"]  # Default selected indicator(s) - in this case, "20-Day SMA"
 )
 
-# Button to fetch data for all tickers - Button to trigger data fetching and analysis
+# Modify the date range setup
+end_date_default = datetime.today()
+start_date_default = end_date_default - timedelta(days=365)
+
+# Add debug information for dates
+st.sidebar.write("Debug Date Information:")
+st.sidebar.write(f"Start Date: {start_date}")
+st.sidebar.write(f"End Date: {end_date}")
+
+# Modify the date handling
+end_date_default = datetime.today().replace(hour=23, minute=59, second=59)
+start_date_default = (end_date_default - timedelta(days=365)).replace(hour=0, minute=0, second=0)
+
+# Modify the data fetching part
 if st.sidebar.button("Fetch Data"):
     stock_data = {}
     with st.spinner("Fetching stock data..."):
         for ticker in tickers:
             try:
-                # Fetch data with explicit interval
+                # Convert dates to string format YYYY-MM-DD
+                start_date_str = start_date.strftime('%Y-%m-%d')
+                end_date_str = end_date.strftime('%Y-%m-%d')
+                
+                # Add debug information
+                st.write(f"Fetching {ticker} data from {start_date_str} to {end_date_str}")
+                
+                # Fetch data with explicit parameters
                 data = yf.download(
                     ticker,
-                    start=start_date,
-                    end=end_date,
-                    interval="1d",  # Explicitly set daily interval
+                    start=start_date_str,
+                    end=(end_date + timedelta(days=1)).strftime('%Y-%m-%d'),  # Add one day to include end date
+                    interval="1d",
                     progress=False
                 )
+                
+                # Debug information about fetched data
+                st.write(f"Fetched {len(data)} rows of data for {ticker}")
+                st.write(f"Date range: {data.index.min()} to {data.index.max()}")
                 
                 # Clean and validate data
                 if not data.empty:
                     # Remove any NaN values
                     data = data.dropna()
                     if len(data) > 0:
+                        if len(data) < get_valid_trading_days(start_date, end_date) * 0.8:  # 80% threshold
+                            st.warning(f"Retrieved fewer trading days than expected for {ticker}. " 
+                                      f"Expected ~{get_valid_trading_days(start_date, end_date)} trading days, "
+                                      f"got {len(data)} days.")
                         stock_data[ticker] = data
                         st.success(f"Successfully loaded data for {ticker}")
                     else:
