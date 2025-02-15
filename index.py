@@ -136,22 +136,24 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
             try:
                 if indicator == "20-Day SMA":  # Simple Moving Average (SMA)
                     sma = data['Close'].rolling(window=20).mean()  # Calculates 20-day SMA of the 'Close' prices
-                    if not sma.empty and not sma.isna().all():
+                    if len(sma) > 0 and not sma.isnull().all():
                         fig.add_trace(go.Scatter(x=data.index, y=sma, mode='lines', name='SMA (20)'))  # Adds SMA as a line trace to the chart
                 elif indicator == "20-Day EMA":  # Exponential Moving Average (EMA)
                     ema = data['Close'].ewm(span=20).mean()  # Calculates 20-day EMA of the 'Close' prices
-                    fig.add_trace(go.Scatter(x=data.index, y=ema, mode='lines', name='EMA (20)'))  # Adds EMA as a line trace to the chart
+                    if len(ema) > 0 and not ema.isnull().all():
+                        fig.add_trace(go.Scatter(x=data.index, y=ema, mode='lines', name='EMA (20)'))  # Adds EMA as a line trace to the chart
                 elif indicator == "20-Day Bollinger Bands":  # Bollinger Bands
                     sma = data['Close'].rolling(window=20).mean()  # Calculates 20-day SMA (for the middle band)
                     std = data['Close'].rolling(window=20).std()  # Calculates 20-day Standard Deviation
                     bb_upper = sma + 2 * std  # Upper Bollinger Band (SMA + 2*STD)
                     bb_lower = sma - 2 * std  # Lower Bollinger Band (SMA - 2*STD)
-                    fig.add_trace(go.Scatter(x=data.index, y=bb_upper, mode='lines', name='BB Upper'))  # Adds Upper Bollinger Band as a line trace
-                    fig.add_trace(go.Scatter(x=data.index, y=bb_lower, mode='lines', name='BB Lower'))  # Adds Lower Bollinger Band as a line trace
+                    if len(sma) > 0 and not sma.isnull().all():
+                        fig.add_trace(go.Scatter(x=data.index, y=bb_upper, mode='lines', name='BB Upper'))  # Adds Upper Bollinger Band as a line trace
+                        fig.add_trace(go.Scatter(x=data.index, y=bb_lower, mode='lines', name='BB Lower'))  # Adds Lower Bollinger Band as a line trace
                 elif indicator == "VWAP":  # Volume Weighted Average Price (VWAP)
-                    data['VWAP'] = (data['Close'] * data['Volume']).cumsum() / data['Volume'].cumsum()  # Calculates VWAP
-                    # (Cumulative sum of (Close * Volume)) / (Cumulative sum of Volume)
-                    fig.add_trace(go.Scatter(x=data.index, y=data['VWAP'], mode='lines', name='VWAP'))  # Adds VWAP as a line trace
+                    vwap = (data['Close'] * data['Volume']).cumsum() / data['Volume'].cumsum()  # Calculates VWAP
+                    if len(vwap) > 0 and not vwap.isnull().all():
+                        fig.add_trace(go.Scatter(x=data.index, y=vwap, mode='lines', name='VWAP'))  # Adds VWAP as a line trace
             except Exception as e:
                 st.warning(f"Error adding indicator {indicator}: {str(e)}")
 
