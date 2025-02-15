@@ -1,0 +1,42 @@
+{
+    "name": "Streamlit Stock Analysis Dev Container",
+    "image": "python:3.9-slim-buster",  // Base Docker image - matches the Dockerfile
+  
+    // Features - Optional, but can simplify adding common tools
+    "features": {
+      // "ghcr.io/devcontainers/features/python:1": {} // Already included in base image, or can be used for specific Python version management if needed
+      // "ghcr.io/devcontainers/features/docker-in-docker:latest": {} // If you need to build Docker images inside the devcontainer (not strictly necessary here)
+    },
+  
+    // Ports to forward to the host - Important for accessing the Streamlit app
+    "forwardPorts": [8501], // Streamlit's default port
+  
+    // Configure tool-specific properties.
+    "customizations": {
+      "vscode": {
+        "settings": {
+          "terminal.integrated.defaultProfile.linux": "bash", // Or "zsh", etc., your preferred shell
+          "python.defaultInterpreterPath": "/usr/local/bin/python", // Path to Python in the container
+          "python.linting.enabled": true,
+          "python.linting.pylintEnabled": true,
+          "python.formatting.autopep8Enabled": true,
+          "python.formatting.provider": "autopep8",
+          "files.autoSave": "afterDelay"
+        },
+        "extensions": [
+          "ms-python.python", // Essential Python extension for VS Code
+          "streamlit.streamlit", // Streamlit extension (if available and helpful, check VS Code marketplace)
+          "ms-python.vscode-pylance", // Python language server for better IntelliSense
+          "ms-azuretools.vscode-docker" // Optional: Docker extension for VS Code if you want to interact with Docker from inside VS Code
+          // Add any other extensions you find helpful for development
+        ]
+      }
+    },
+  
+    // Use 'postCreateCommand' to run commands after the container is created.
+    // Here we install the Python dependencies from requirements.txt
+    "postCreateCommand": "pip install --no-cache-dir -r requirements.txt",
+  
+    // Comment out to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+    "remoteUser": "vscode"
+  }
