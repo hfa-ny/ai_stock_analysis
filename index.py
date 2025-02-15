@@ -118,6 +118,20 @@ if st.sidebar.button("Fetch Data"):
                 else:
                     st.warning(f"No data found for {ticker}")
                     
+                # Inside the Fetch Data button code, after successful data fetch
+                if not data.empty:
+                    # Debug information
+                    st.write("### Detailed Data Information:")
+                    st.write(f"First date: {data.index.min()}")
+                    st.write(f"Last date: {data.index.max()}")
+                    st.write(f"Number of trading days: {len(data)}")
+                    st.write(f"Data frequency: {pd.infer_freq(data.index)}")
+                    st.write("### Missing dates check:")
+                    date_range = pd.date_range(start=data.index.min(), end=data.index.max(), freq='B')
+                    missing_dates = date_range.difference(data.index)
+                    if len(missing_dates) > 0:
+                        st.write("Missing trading days:", missing_dates)
+                    
             except Exception as e:
                 st.error(f"Error fetching data for {ticker}: {str(e)}")
                 
@@ -135,6 +149,20 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
     def analyze_ticker(ticker, data):  # Defines a function to analyze a single stock ticker
         # First, clean the data by removing NaN values
         data = data.dropna()
+
+        # Enhanced debug information
+        st.write(f"### Data Information for {ticker}:")
+        st.write(f"Total rows: {len(data)}")
+        st.write(f"Date range: {data.index.min()} to {data.index.max()}")
+        st.write(f"Trading days: {len(data)} out of {get_valid_trading_days(start_date, end_date)} possible trading days")
+        
+        # Show more rows in the preview (adjust the number as needed)
+        st.write("### Sample of the data (first 10 rows):")
+        st.dataframe(data.head(10))
+        
+        # Show summary statistics
+        st.write("### Data Summary Statistics:")
+        st.dataframe(data.describe())
 
         # Check if data is empty after cleaning
         if data.empty:
