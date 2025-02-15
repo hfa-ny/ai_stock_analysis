@@ -79,7 +79,8 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
 
     # Define a function to build chart, call the Gemini API and return structured result
     def analyze_ticker(ticker, data):  # Defines a function to analyze a single stock ticker
-        data = yf.download(ticker, start=start_date, end=end_date)
+        # Remove the line that re-downloads the data
+        # data = yf.download(ticker, start=start_date, end=end_date)
 
         # --- Debugging: Print the raw DataFrame ---
         st.write("### Raw Data from yfinance:")
