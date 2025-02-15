@@ -79,75 +79,9 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
 
     # Define a function to build chart, call the Gemini API and return structured result
     def analyze_ticker(ticker, data):  # Defines a function to analyze a single stock ticker
-        # Remove the line that re-downloads the data
-        # data = yf.download(ticker, start=start_date, end=end_date)
-
-        # --- Debugging: Print the raw DataFrame ---
-        st.write("### Raw Data from yfinance:")
-        st.dataframe(data)  # Use st.dataframe for better display in Streamlit
-        # --- End Debugging ---
+        
         # ticker: stock symbol (string)
         # data: pandas DataFrame containing stock data for the ticker
-        if data.empty: # Keep the existing check for empty data
-            st.warning(f"No data found for {ticker}.")
-            return None, {"action": "Error", "justification": "No data fetched from yfinance"} # Return None for fig
-
-        # Ensure data columns are cast to the correct data types
-        st.write(f"### Data for {ticker}:")
-        st.write(data.head())  # Print the first few rows of the data
-
-        # Check the type of the data variable
-        st.write("### Type of data variable:")
-        st.write(type(data))  # Print the type of the data variable
-
-        # Check the columns of the data DataFrame
-        st.write("### Columns in data DataFrame:")
-        st.write(data.columns)  # Print the columns of the data DataFrame
-
-        # Check for NaN values in the data
-        st.write("### Checking for NaN values:")
-        st.write(data.isna().sum())  # Print the count of NaN values in each column
-
-        # Check for zeros in the data
-        st.write("### Checking for zeros:")
-        st.write((data == 0).sum())  # Print the count of zeros in each column
-
-        # Print rows containing NaN values
-        st.write("### Rows with NaN values:")
-        st.write(data[data.isna().any(axis=1)])
-
-        # Print rows containing zeros
-        st.write("### Rows with zeros:")
-        st.write(data[(data == 0).any(axis=1)])
-
-        # Ensure data columns are cast to the correct data types
-        data['Open'] = pd.to_numeric(data['Open'], errors='coerce')
-        data['High'] = pd.to_numeric(data['High'], errors='coerce')
-        data['Low'] = pd.to_numeric(data['Low'], errors='coerce')
-        data['Close'] = pd.to_numeric(data['Close'], errors='coerce')
-        data['Volume'] = pd.to_numeric(data['Volume'], errors='coerce')
-
-        # Handle NaN values by filling them with the previous value (forward fill)
-        data.fillna(method='ffill', inplace=True)
-        data.fillna(method='bfill', inplace=True)  # Backward fill if forward fill doesn't work
-
-        # Handle zeros by replacing them with NaN and then filling them
-        data.replace(0, pd.NA, inplace=True)
-        data.fillna(method='ffill', inplace=True)
-        data.fillna(method='bfill', inplace=True)
-
-        # Re-check for NaN values after handling
-        st.write("### Checking for NaN values after handling:")
-        st.write(data.isna().sum())
-
-        # Re-check for zeros after handling
-        st.write("### Checking for zeros after handling:")
-        st.write((data == 0).sum())
-
-        # Ensure the data is not empty before proceeding
-        if data.empty:
-            st.warning(f"No valid data available for {ticker} after cleaning.")
-            return None, {"action": "Error", "justification": "No valid data available for analysis."}
 
         # Build candlestick chart for the given ticker's data
         fig = go.Figure(data=[  # Creates a Plotly Figure object to hold the chart
