@@ -71,51 +71,49 @@ indicators = st.sidebar.multiselect(
 # Modify the data fetching part
 if st.sidebar.button("Fetch Data"):
     stock_data = {}
-    with st.spinner("Fetching data..."):  # Replace debug messages with a spinner
-        for ticker in tickers:
-            try:
-                # Calculate appropriate start date based on selected timeframe
-                max_days = time_frame_options[selected_time_frame]["days"]
-                interval = time_frame_options[selected_time_frame]["interval"]
+    for ticker in tickers:
+        try:
+            # Calculate appropriate start date based on selected timeframe
+            max_days = time_frame_options[selected_time_frame]["days"]
+            interval = time_frame_options[selected_time_frame]["interval"]
 
-                # Adjust start date based on timeframe and market hours
-                adjusted_start_date = datetime.today() - timedelta(days=max_days)
-                if start_date > adjusted_start_date.date():
-                    adjusted_start_date = start_date
+            # Adjust start date based on timeframe
+            adjusted_start_date = datetime.today() - timedelta(days=max_days)
+            if start_date > adjusted_start_date.date(): # Corrected line: compare dates
+                adjusted_start_date = start_date
 
-                # Download data with proper parameters
-                data = yf.download(
-                    ticker,
-                    start=adjusted_start_date,
-                    end=end_date,
-                    interval=interval,
-                    prepost=False  # Remove pre/post market hours to reduce gaps
-                )
+            # Debug information - Removed for cleaner UI, keep for debugging if needed
+            # st.write(f"Fetching {ticker} data:")
+            # st.write(f"Interval: {interval}")
+            # st.write(f"Start Date: {adjusted_start_date.strftime('%Y-%m-%d %H:%M:%S')}")
+            # st.write(f"End Date: {end_date.strftime('%Y-%m-%d %H:%M:%S')}")
 
-                # Clean the data by removing outliers and gaps
-                if interval in ['5m', '15m', '60m']:
-                    # Remove extreme outliers (more than 3 standard deviations)
-                    mean = data['Close'].mean()
-                    std = data['Close'].std()
-                    data = data[abs(data['Close'] - mean) <= 3 * std]
-                    
-                    # Forward fill small gaps
-                    data = data.fillna(method='ffill', limit=3)
-                    
-                    # Remove remaining rows with NaN values
-                    data = data.dropna()
+            # Download data with proper parameters
+            data = yf.download(
+                ticker,
+                start=adjusted_start_date,
+                end=end_date,
+                interval=interval,
+                prepost=True  # Include pre/post market hours for intraday
+            )
 
-                if len(data) > 0:
-                    stock_data[ticker] = data
-                else:
-                    st.warning(f"No data available for {ticker} in selected timeframe")
+            if data is not None and not data.empty:
+                stock_data[ticker] = data
+                st.success(f"Successfully fetched {len(data)} rows for {ticker} ({interval} interval)")
+                # **DEBUG PRINTING - Check data shape - Removed for cleaner UI, keep for debugging if needed
+                # st.write(f"  Data shape: {data.shape}")
+            else:
+                st.warning(f"No data found for {ticker} with {interval} interval.  Data might be limited for this timeframe or date range.")
 
-            except Exception as e:
-                st.error(f"Error fetching {ticker}")
+        except Exception as e:
+            st.error(f"Error fetching {ticker}: {str(e)}")
+            st.error(f"Error details: {e}")
 
     if stock_data:
         st.session_state["stock_data"] = stock_data
-        st.success("✅ Data loaded successfully")
+        st.success("Stock data loaded successfully for: " + ", ".join(stock_data.keys()))
+    else:
+        st.error("No data was loaded for any ticker")
 
 # Ensure we have data to analyze
 if "stock_data" in st.session_state and st.session_state["stock_data"]:
@@ -154,9 +152,9 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 if len(data) < original_length:
                     st.info(f"Data has been downsampled from {original_length} to {len(data)} points for better performance")
 
-            # Debug information
-            st.write(f"### Data Information for {ticker}:")
-            st.write(f"Total rows after processing: {len(data)}")
+            # Debug information - Removed for cleaner UI, keep for debugging if needed
+            # st.write(f"### Data Information for {ticker}:")
+            # st.write(f"Total rows after processing: {len(data)}")
 
             # Check if data is empty or invalid
             if data.empty:
@@ -210,12 +208,29 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 title=f"{ticker} Stock Price",
                 yaxis_title="Price",
                 xaxis_title="Date",
-                xaxis_rangeslider_visible=False
+                xaxis_rangeslider_visible=False,
+                xaxis_rangeslider_visible=False, # duplicated line, remove one
+                xaxis_rangeselector=dict(  # Add range selector for better navigation
+                    buttons=list([
+                        dict(count=1, label="1D", step="day", stepmode="backward"),
+                        dict(count=5, label="5D", step="day", stepmode="backward"),
+                        dict(count=1, label="1M", step="month", stepmode="backward"),
+                        dict(count=3, label="3M", step="month", stepmode="backward"),
+                        dict(count=6, label="6M", step="month", stepmode="backward"),
+                        dict(count=1, label="1Y", step="year", stepmode="backward"),
+                        dict(step="all")
+                    ])
+                )
             )
 
             # Add indicators
             for ind in indicators: # **'indicators' is now passed as argument**
                 add_indicator(ind)
+
+            # Display raw data for short timeframes - For debugging chart gaps/spikes
+            if selected_time_frame in ["5min", "15min", "1hour"]:
+                st.write("### Raw Data (for timeframe inspection)")
+                st.dataframe(data)
 
             # Save chart as temporary PNG file and read image bytes
             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
