@@ -91,6 +91,15 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
         if data.empty: # Keep the existing check for empty data
             st.warning(f"No data found for {ticker}.")
             return None, {"action": "Error", "justification": "No data fetched from yfinance"} # Return None for fig
+
+        # Additional debugging: Print the first few rows of the data
+        st.write(f"### Data for {ticker}:")
+        st.write(data.head())  # Print the first few rows of the data
+
+        # Check for NaN values in the data
+        st.write("### Checking for NaN values:")
+        st.write(data.isna().sum())  # Print the count of NaN values in each column
+
         # Build candlestick chart for the given ticker's data
         fig = go.Figure(data=[  # Creates a Plotly Figure object to hold the chart
             go.Candlestick(  # Creates a Candlestick trace for the stock price data
