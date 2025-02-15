@@ -168,7 +168,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 )
                 return empty_fig, {"action": "Error", "justification": "No data fetched from yfinance"}
 
-            # Build candlestick chart
+            # Build candlestick chart with logarithmic scale
             fig = go.Figure(data=[
                 go.Candlestick(
                     x=data.index,
@@ -176,9 +176,49 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                     high=data['High'],
                     low=data['Low'],
                     close=data['Close'],
-                    name="Candlestick"
+                    name="Price",
+                    increasing_line_color='#26A69A',
+                    decreasing_line_color='#EF5350'
                 )
             ])
+
+            # Update layout with logarithmic scale for small timeframes
+            fig.update_layout(
+                title=f"{ticker} Stock Price",
+                yaxis_title="Price (log scale)",
+                xaxis_title="Date",
+                yaxis_type="log" if selected_time_frame in ["5min", "15min", "1hour"] else "linear",
+                xaxis_rangeslider_visible=False,
+                template="plotly_white",
+                height=600,
+                yaxis=dict(
+                    gridcolor="rgba(128, 128, 128, 0.2)",
+                    zerolinecolor="rgba(128, 128, 128, 0.2)",
+                    tickformat=".2f",  # Show 2 decimal places
+                    showgrid=True,
+                    showline=True
+                ),
+                xaxis=dict(
+                    gridcolor="rgba(128, 128, 128, 0.2)",
+                    rangeslider=dict(visible=False),
+                    showgrid=True,
+                    showline=True,
+                    type='date'
+                ),
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                margin=dict(l=50, r=50, t=50, b=50),
+                showlegend=True
+            )
+
+            # For intraday data, add specific configurations
+            if selected_time_frame in ["5min", "15min", "1hour"]:
+                fig.update_xaxes(
+                    rangebreaks=[
+                        dict(bounds=["sat", "mon"]),  # Hide weekends
+                        dict(bounds=[20, 4], pattern="hour"),  # Hide non-trading hours
+                    ]
+                )
 
             # Add selected technical indicators
             def add_indicator(indicator):
