@@ -96,6 +96,14 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
         st.write(f"### Data for {ticker}:")
         st.write(data.head())  # Print the first few rows of the data
 
+        # Check the type of the data variable
+        st.write("### Type of data variable:")
+        st.write(type(data))  # Print the type of the data variable
+
+        # Check the columns of the data DataFrame
+        st.write("### Columns in data DataFrame:")
+        st.write(data.columns)  # Print the columns of the data DataFrame
+
         # Check for NaN values in the data
         st.write("### Checking for NaN values:")
         st.write(data.isna().sum())  # Print the count of NaN values in each column
