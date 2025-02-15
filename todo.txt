@@ -1,0 +1,8 @@
+1- add more indicators like RSI, p2fdsr, On-Balance Volume
+2- some sentiment insicators like CNN Fear or Greed
+3- 10Y bonds yeild
+4- social media sentiment
+5- news sentiment
+6- Consumer Confidence Index (CCI)
+
+* Add more time frames
