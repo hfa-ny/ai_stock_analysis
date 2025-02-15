@@ -71,49 +71,51 @@ indicators = st.sidebar.multiselect(
 # Modify the data fetching part
 if st.sidebar.button("Fetch Data"):
     stock_data = {}
-    for ticker in tickers:
-        try:
-            # Calculate appropriate start date based on selected timeframe
-            max_days = time_frame_options[selected_time_frame]["days"]
-            interval = time_frame_options[selected_time_frame]["interval"]
+    with st.spinner("Fetching data..."):  # Replace debug messages with a spinner
+        for ticker in tickers:
+            try:
+                # Calculate appropriate start date based on selected timeframe
+                max_days = time_frame_options[selected_time_frame]["days"]
+                interval = time_frame_options[selected_time_frame]["interval"]
 
-            # Adjust start date based on timeframe
-            adjusted_start_date = datetime.today() - timedelta(days=max_days)
-            if start_date > adjusted_start_date.date(): # Corrected line: compare dates
-                adjusted_start_date = start_date
+                # Adjust start date based on timeframe and market hours
+                adjusted_start_date = datetime.today() - timedelta(days=max_days)
+                if start_date > adjusted_start_date.date():
+                    adjusted_start_date = start_date
 
-            # Add debug information
-            st.write(f"Fetching {ticker} data:")
-            st.write(f"Interval: {interval}")
-            st.write(f"Start Date: {adjusted_start_date.strftime('%Y-%m-%d %H:%M:%S')}") # Format for clarity
-            st.write(f"End Date: {end_date.strftime('%Y-%m-%d %H:%M:%S')}")
+                # Download data with proper parameters
+                data = yf.download(
+                    ticker,
+                    start=adjusted_start_date,
+                    end=end_date,
+                    interval=interval,
+                    prepost=False  # Remove pre/post market hours to reduce gaps
+                )
 
-            # Download data with proper parameters
-            data = yf.download(
-                ticker,
-                start=adjusted_start_date,
-                end=end_date,
-                interval=interval,
-                prepost=True  # Include pre/post market hours for intraday
-            )
+                # Clean the data by removing outliers and gaps
+                if interval in ['5m', '15m', '60m']:
+                    # Remove extreme outliers (more than 3 standard deviations)
+                    mean = data['Close'].mean()
+                    std = data['Close'].std()
+                    data = data[abs(data['Close'] - mean) <= 3 * std]
+                    
+                    # Forward fill small gaps
+                    data = data.fillna(method='ffill', limit=3)
+                    
+                    # Remove remaining rows with NaN values
+                    data = data.dropna()
 
-            if data is not None and not data.empty:
-                stock_data[ticker] = data
-                st.success(f"Successfully fetched {len(data)} rows for {ticker} ({interval} interval)")
-                # **DEBUG PRINTING - Check data shape**
-                st.write(f"  Data shape: {data.shape}")
-            else:
-                st.warning(f"No data found for {ticker} with {interval} interval.  Data might be limited for this timeframe or date range.")
+                if len(data) > 0:
+                    stock_data[ticker] = data
+                else:
+                    st.warning(f"No data available for {ticker} in selected timeframe")
 
-        except Exception as e:
-            st.error(f"Error fetching {ticker}: {str(e)}")
-            st.error(f"Error details: {e}")
+            except Exception as e:
+                st.error(f"Error fetching {ticker}")
 
     if stock_data:
         st.session_state["stock_data"] = stock_data
-        st.success("Stock data loaded successfully for: " + ", ".join(stock_data.keys()))
-    else:
-        st.error("No data was loaded for any ticker")
+        st.success("✅ Data loaded successfully")
 
 # Ensure we have data to analyze
 if "stock_data" in st.session_state and st.session_state["stock_data"]:
