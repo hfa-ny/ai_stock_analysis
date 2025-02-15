@@ -79,14 +79,14 @@ if st.sidebar.button("Fetch Data"):
 
             # Adjust start date based on timeframe
             adjusted_start_date = datetime.today() - timedelta(days=max_days)
-            if start_date > adjusted_start_date:
+            if start_date > adjusted_start_date.date(): # Corrected line: compare dates
                 adjusted_start_date = start_date
 
             # Add debug information
             st.write(f"Fetching {ticker} data:")
             st.write(f"Interval: {interval}")
-            st.write(f"Start Date: {adjusted_start_date}")
-            st.write(f"End Date: {end_date}")
+            st.write(f"Start Date: {adjusted_start_date.strftime('%Y-%m-%d %H:%M:%S')}") # Format for clarity
+            st.write(f"End Date: {end_date.strftime('%Y-%m-%d %H:%M:%S')}")
 
             # Download data with proper parameters
             data = yf.download(
@@ -99,9 +99,11 @@ if st.sidebar.button("Fetch Data"):
 
             if data is not None and not data.empty:
                 stock_data[ticker] = data
-                st.success(f"Successfully fetched {len(data)} rows for {ticker}")
+                st.success(f"Successfully fetched {len(data)} rows for {ticker} ({interval} interval)")
+                # **DEBUG PRINTING - Check data shape**
+                st.write(f"  Data shape: {data.shape}")
             else:
-                st.warning(f"No data found for {ticker}")
+                st.warning(f"No data found for {ticker} with {interval} interval.  Data might be limited for this timeframe or date range.")
 
         except Exception as e:
             st.error(f"Error fetching {ticker}: {str(e)}")
