@@ -81,17 +81,15 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
     def analyze_ticker(ticker, data):  # Defines a function to analyze a single stock ticker
         data = yf.download(ticker, start=start_date, end=end_date)
 
-        if data is None: # Check if data is None
-            st.error("Error: data is None after yf.download! Check ticker or date range.")
-            return None, {"action": "Error", "justification": "Data is None after yf.download"} # Return None for fig
-
-        # --- Debugging: Print Data Types ---
-        st.write("### Data Types (dtypes):")
-        # Check again if data is still None *before* accessing attributes
-        if data is None: 
-            st.error("Error: data is None again right before data.dtypes! Something went very wrong.")
-            return None, {"action": "Error", "justification": "Data became None unexpectedly"} # Return None for fig
-        st.write(data.dtypes) # Try to print dtypes *only if data is not None*
+        # --- Debugging: Print the raw DataFrame ---
+        st.write("### Raw Data from yfinance:")
+        st.dataframe(data)  # Use st.dataframe for better display in Streamlit
+        # --- End Debugging ---
+        # ticker: stock symbol (string)
+        # data: pandas DataFrame containing stock data for the ticker
+        if data.empty: # Keep the existing check for empty data
+            st.warning(f"No data found for {ticker}.")
+            return None, {"action": "Error", "justification": "No data fetched from yfinance"} # Return None for fig
         # Build candlestick chart for the given ticker's data
         fig = go.Figure(data=[  # Creates a Plotly Figure object to hold the chart
             go.Candlestick(  # Creates a Candlestick trace for the stock price data
