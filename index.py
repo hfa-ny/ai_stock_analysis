@@ -36,8 +36,8 @@ end_date = st.sidebar.date_input("End Date", value=end_date_default)
 # --- New: Time Frame Selection ---
 # Update the time frame options with only supported intervals
 time_frame_options = {
-    "5min": {"interval": "5m", "days": 3, "max_points": 5000},
-    "15min": {"interval": "15m", "days": 5, "max_points": 3000},
+    "5min": {"interval": "5m", "days": 7, "max_points": 5000},
+    "15min": {"interval": "15m", "days": 14, "max_points": 3000},
     "1hour": {"interval": "60m", "days": 30, "max_points": 2000},
     "day": {"interval": "1d", "days": 365, "max_points": None},
     "week": {"interval": "1wk", "days": 365, "max_points": None}
