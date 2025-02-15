@@ -72,7 +72,6 @@ if st.sidebar.button("Fetch Data"):  # Creates a button in the sidebar labeled "
     # Session state allows variables to persist across user interactions within the app.
     st.success("Stock data loaded successfully for: " + ", ".join(stock_data.keys()))  # Displays a success message after data loading
     # Lists the tickers for which data was successfully loaded.
-
 # Ensure we have data to analyze - Conditional execution of analysis and charting only if stock data is loaded
 if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Checks if 'stock_data' exists in session state and is not empty
     # This ensures that the following code runs only after stock data has been successfully fetched.
