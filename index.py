@@ -81,39 +81,17 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
     def analyze_ticker(ticker, data):  # Defines a function to analyze a single stock ticker
         data = yf.download(ticker, start=start_date, end=end_date)
 
-        # --- Debugging: Print Raw Data DataFrame (already had this) ---
-        st.write("### Raw Data from yfinance (DataFrame):")
-        st.dataframe(data)
+        if data is None: # Check if data is None
+            st.error("Error: data is None after yf.download! Check ticker or date range.")
+            return None, {"action": "Error", "justification": "Data is None after yf.download"} # Return None for fig
 
-        # --- Debugging: Print Data Types (already had this) ---
+        # --- Debugging: Print Data Types ---
         st.write("### Data Types (dtypes):")
-        st.write(data.dtypes)
-
-        # --- Debugging: Inspect a Sample Row ---
-        st.write("### Sample Row (First 5 rows):")
-        st.dataframe(data.head()) # Display first 5 rows to see actual values
-
-        # --- Debugging: Check 'Close' Column Specifically ---
-        st.write("### 'Close' Column Data Type:")
-        st.write(data['Close'].dtype) # Check data type of 'Close' column
-        st.write("### First 10 values of 'Close' Column:")
-        st.write(data['Close'].head(10)) # Display first 10 values of 'Close'
-
-        if data.empty: # Keep the existing check for empty data
-            st.warning(f"No data found for {ticker}.")
-            return None, {"action": "Error", "justification": "No data fetched from yfinance"} # Return None for fig
-
-        # --- Debugging: Indicator Calculations - Print intermediate SMA values ---
-        st.write("### Calculating 20-Day SMA - Intermediate Values:")
-        sma = data['Close'].rolling(window=20).mean()
-        st.write("First 25 values of SMA (showing initial NaN values expectedly):")
-        st.write(sma.head(25)) # Show initial NaN values (expected for SMA)
-        st.write("Last 10 values of SMA:")
-        st.write(sma.tail(10)) # Show last 10 SMA values
-
-        # --- Debugging: Similar for EMA, Bollinger Bands, VWAP (add if needed, but SMA is a good start) ---
-        # ... (You can add similar st.write statements for EMA, Bollinger Bands, VWAP calculations if needed to debug those as well) ...
-
+        # Check again if data is still None *before* accessing attributes
+        if data is None: 
+            st.error("Error: data is None again right before data.dtypes! Something went very wrong.")
+            return None, {"action": "Error", "justification": "Data became None unexpectedly"} # Return None for fig
+        st.write(data.dtypes) # Try to print dtypes *only if data is not None*
         # Build candlestick chart for the given ticker's data
         fig = go.Figure(data=[  # Creates a Plotly Figure object to hold the chart
             go.Candlestick(  # Creates a Candlestick trace for the stock price data
