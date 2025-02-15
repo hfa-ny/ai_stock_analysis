@@ -209,7 +209,6 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 yaxis_title="Price",
                 xaxis_title="Date",
                 xaxis_rangeslider_visible=False,
-                xaxis_rangeslider_visible=False, # duplicated line, remove one
                 xaxis_rangeselector=dict(  # Add range selector for better navigation
                     buttons=list([
                         dict(count=1, label="1D", step="day", stepmode="backward"),
