@@ -144,6 +144,11 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
         st.write("### Checking for zeros after handling:")
         st.write((data == 0).sum())
 
+        # Ensure the data is not empty before proceeding
+        if data.empty:
+            st.warning(f"No valid data available for {ticker} after cleaning.")
+            return None, {"action": "Error", "justification": "No valid data available for analysis."}
+
         # Build candlestick chart for the given ticker's data
         fig = go.Figure(data=[  # Creates a Plotly Figure object to hold the chart
             go.Candlestick(  # Creates a Candlestick trace for the stock price data
