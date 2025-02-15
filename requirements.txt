@@ -4,4 +4,3 @@ pandas
 plotly
 google-generativeai
 kaleido  
-plotly-orca
