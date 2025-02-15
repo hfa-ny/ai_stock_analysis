@@ -136,8 +136,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
             try:
                 if indicator == "20-Day SMA":
                     sma = data['Close'].rolling(window=20).mean()
-                    # Check if the series has any non-null values
-                    if not sma.empty and not sma.isna().all():
+                    if len(sma) > 0:  # Simple length check
                         fig.add_trace(go.Scatter(
                             x=data.index,
                             y=sma,
@@ -148,8 +147,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
                         
                 elif indicator == "20-Day EMA":
                     ema = data['Close'].ewm(span=20, adjust=False).mean()
-                    # Check if the series has any non-null values
-                    if not ema.empty and not ema.isna().all():
+                    if len(ema) > 0:  # Simple length check
                         fig.add_trace(go.Scatter(
                             x=data.index,
                             y=ema,
@@ -159,14 +157,12 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
                         ))
                         
                 elif indicator == "20-Day Bollinger Bands":
-                    # Calculate Bollinger Bands components
                     bb_sma = data['Close'].rolling(window=20).mean()
                     bb_std = data['Close'].rolling(window=20).std()
                     bb_upper = bb_sma + (bb_std * 2)
                     bb_lower = bb_sma - (bb_std * 2)
                     
-                    # Add traces if data is valid
-                    if not bb_sma.empty and not bb_sma.isna().all():
+                    if len(bb_sma) > 0:  # Simple length check
                         fig.add_trace(go.Scatter(
                             x=data.index,
                             y=bb_upper,
@@ -180,15 +176,23 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:  # Check
                             mode='lines',
                             name='BB Lower',
                             line=dict(color='gray', dash='dash')
+                         ))
+                        fig.add_trace(go.Scatter(
+                            x=data.index,
+                            y=bb_sma,
+                            mode='lines',
+                            name='BB Middle',
+                            line=dict(color='gray')
                         ))
                         
                 elif indicator == "VWAP":
                     # Calculate VWAP
                     typical_price = (data['High'] + data['Low'] + data['Close']) / 3
-                    vwap = (typical_price * data['Volume']).cumsum() / data['Volume'].cumsum()
+                    cumulative_tp_vol = (typical_price * data['Volume']).cumsum()
+                    cumulative_vol = data['Volume'].cumsum()
+                    vwap = cumulative_tp_vol / cumulative_vol
                     
-                    # Check if the series has any non-null values
-                    if not vwap.empty and not vwap.isna().all():
+                    if len(vwap) > 0:  # Simple length check
                         fig.add_trace(go.Scatter(
                             x=data.index,
                             y=vwap,
