@@ -99,7 +99,7 @@ if st.sidebar.button("Fetch Data"):
 
             if data is not None and not data.empty:
                 stock_data[ticker] = data
-                st.success(f"Successfully fetched {len(data)} rows for {ticker} ({interval} interval)")
+               # st.success(f"Successfully fetched {len(data)} rows for {ticker} ({interval} interval)")
                 # **DEBUG PRINTING - Check data shape - Removed for cleaner UI, keep for debugging if needed
                 # st.write(f"  Data shape: {data.shape}")
             else:
