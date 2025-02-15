@@ -1,21 +1,31 @@
-import streamlit as st
-import google.generativeai as genai
-import yfinance as yf
-import pandas as pd
-import plotly.graph_objects as go
-import tempfile
-import os
-import json
-from datetime import datetime, timedelta
+## AI-Powered Technical Analysis Dashboard (Gemini 2.0)
 
-# ... (API Key and Model Configuration - No changes needed) ...
+# Libraries - Importing necessary Python libraries
+import streamlit as st  # Streamlit for creating the web application interface
+import google.generativeai as genai
+import yfinance as yf  # yfinance to download historical stock market data from Yahoo Finance
+import pandas as pd  # pandas for data manipulation and analysis (DataFrames)
+import plotly.graph_objects as go  # plotly for creating interactive charts, specifically candlestick charts
+import tempfile  # tempfile for creating temporary files (used to save chart images)
+import os  # os for interacting with the operating system (e.g., deleting temporary files)
+import json  # json for working with JSON data (expected response format from Gemini)
+from datetime import datetime, timedelta  # datetime and timedelta for date and time calculations
+
+# Configure the API key - Use Streamlit secrets or environment variables for security
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+
+# Select the Gemini model - using 'gemini-2.0-flash' as a general-purpose model
+MODEL_NAME = 'gemini-2.0-flash'
+gen_model = genai.GenerativeModel(MODEL_NAME)
 
 # Set up Streamlit app
 st.set_page_config(layout="wide")
 st.title("AI-Powered Technical Stock Analysis Dashboard")
 st.sidebar.header("Configuration")
 
-# ... (Ticker Input - No changes needed) ...
+# Input for multiple stock tickers (comma-separated)
+tickers_input = st.sidebar.text_input("Enter Stock Tickers (comma-separated):", "AAPL,MSFT,GOOG")
+tickers = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
 
 # Set the date range: default is one year before today to today
 end_date_default = datetime.today()
@@ -23,7 +33,8 @@ start_date_default = end_date_default - timedelta(days=365)
 start_date = st.sidebar.date_input("Start Date", value=start_date_default)
 end_date = st.sidebar.date_input("End Date", value=end_date_default)
 
-# --- Time Frame Selection ---
+# --- New: Time Frame Selection ---
+# Update the time frame options with only supported intervals
 time_frame_options = {
     "5min": {"interval": "5m", "days": 3, "max_points": 1000},
     "15min": {"interval": "15m", "days": 5, "max_points": 1000},
@@ -32,23 +43,32 @@ time_frame_options = {
     "week": {"interval": "1wk", "days": 365, "max_points": None}
 }
 
+# Add warning for intraday data limitations
 def show_timeframe_warning(selected_timeframe):
     if selected_timeframe in ["5min", "15min"]:
         st.sidebar.warning(f"""
         ⚠️ Important Note for {selected_timeframe} timeframe:
         - Limited to last {time_frame_options[selected_timeframe]['days']} days only
-        - Data might be delayed or limited by Yahoo Finance
-        - May not work reliably outside market hours
+        - Data might be delayed or limited
+        - May not work outside market hours
         """)
 
+# Update the sidebar selection
 selected_time_frame = st.sidebar.selectbox(
     "Select Time Frame",
     list(time_frame_options.keys())
 )
-show_timeframe_warning(selected_time_frame) # Call the warning function
+show_timeframe_warning(selected_time_frame)
 
-# ... (Technical Indicators Selection - No changes needed) ...
+# Technical indicators selection (applied to every ticker)
+st.sidebar.subheader("Technical Indicators")
+indicators = st.sidebar.multiselect(
+    "Select Indicators:",
+    ["20-Day SMA", "20-Day EMA", "20-Day Bollinger Bands", "VWAP"],
+    default=["20-Day SMA"]
+)
 
+# Modify the data fetching part
 if st.sidebar.button("Fetch Data"):
     stock_data = {}
     for ticker in tickers:
@@ -62,31 +82,30 @@ if st.sidebar.button("Fetch Data"):
             if start_date > adjusted_start_date:
                 adjusted_start_date = start_date
 
-            # **DEBUG PRINTING - Important for troubleshooting**
+            # Add debug information
             st.write(f"Fetching {ticker} data:")
-            st.write(f"  Interval: {interval}")
-            st.write(f"  Start Date: {adjusted_start_date.strftime('%Y-%m-%d %H:%M:%S')}") # Format for clarity
-            st.write(f"  End Date: {end_date.strftime('%Y-%m-%d %H:%M:%S')}")
+            st.write(f"Interval: {interval}")
+            st.write(f"Start Date: {adjusted_start_date}")
+            st.write(f"End Date: {end_date}")
 
+            # Download data with proper parameters
             data = yf.download(
                 ticker,
                 start=adjusted_start_date,
                 end=end_date,
                 interval=interval,
-                prepost=True
+                prepost=True  # Include pre/post market hours for intraday
             )
 
-            if data is not None and not data.empty: # **Robust check for None and empty**
+            if data is not None and not data.empty:
                 stock_data[ticker] = data
-                st.success(f"Successfully fetched {len(data)} rows for {ticker} ({interval} interval)")
-                # **DEBUG PRINTING - Check data shape**
-                st.write(f"  Data shape: {data.shape}")
+                st.success(f"Successfully fetched {len(data)} rows for {ticker}")
             else:
-                st.warning(f"No data found for {ticker} with {interval} interval.  Data might be limited for this timeframe or date range.")
+                st.warning(f"No data found for {ticker}")
 
         except Exception as e:
             st.error(f"Error fetching {ticker}: {str(e)}")
-            st.error(f"Error details: {e}") # Print full error for debugging
+            st.error(f"Error details: {e}")
 
     if stock_data:
         st.session_state["stock_data"] = stock_data
@@ -94,38 +113,58 @@ if st.sidebar.button("Fetch Data"):
     else:
         st.error("No data was loaded for any ticker")
 
-
+# Ensure we have data to analyze
 if "stock_data" in st.session_state and st.session_state["stock_data"]:
-
+    # Add this function before the analyze_ticker function
     def downsample_data(data, max_points):
+        """Downsample data if it exceeds max_points"""
         if max_points and len(data) > max_points:
+            # Calculate sampling interval
             sample_interval = len(data) // max_points
             return data.iloc[::sample_interval]
         return data
 
-    def analyze_ticker(ticker, data): # **Removed redundant data fetching here**
+    # Define a function to build chart, call the Gemini API and return structured result
+    def analyze_ticker(ticker, data, indicators): # **Pass 'indicators' as argument**
         try:
+            # Get the max points limit and interval for the selected timeframe
             timeframe_info = time_frame_options[selected_time_frame]
             max_points = timeframe_info["max_points"]
             interval = timeframe_info["interval"]
 
-            if data.empty: # **Check if data is already empty (from outer scope)**
-                st.warning(f"No data available for {ticker} (already checked in data fetching).")
+            if data.empty:
+                st.warning(f"No data available for {ticker} with {interval} interval")
                 empty_fig = go.Figure()
                 empty_fig.add_annotation(
-                    text="No data available from yfinance",
+                    text="No data available for selected timeframe",
                     xref="paper", yref="paper",
                     x=0.5, y=0.5, showarrow=False
                 )
-                return empty_fig, {"action": "Error", "justification": "No data fetched from yfinance (already checked)."}
+                return empty_fig, {"action": "Error", "justification": "No data available for selected timeframe"}
 
-
+            # Clean and downsample the data if needed
             data = data.dropna()
             if max_points:
                 original_length = len(data)
                 data = downsample_data(data, max_points)
                 if len(data) < original_length:
-                    st.info(f"Data downsampled from {original_length} to {len(data)} points for performance.")
+                    st.info(f"Data has been downsampled from {original_length} to {len(data)} points for better performance")
+
+            # Debug information
+            st.write(f"### Data Information for {ticker}:")
+            st.write(f"Total rows after processing: {len(data)}")
+
+            # Check if data is empty or invalid
+            if data.empty:
+                st.warning(f"No data found for {ticker}.")
+                # Return empty figure and error message
+                empty_fig = go.Figure()
+                empty_fig.add_annotation(
+                    text="No data available",
+                    xref="paper", yref="paper",
+                    x=0.5, y=0.5, showarrow=False
+                )
+                return empty_fig, {"action": "Error", "justification": "No data fetched from yfinance"}
 
             # Build candlestick chart
             fig = go.Figure(data=[
@@ -139,8 +178,30 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 )
             ])
 
-            # ... (Add Indicators - No changes needed) ...
+            # Add selected technical indicators
+            def add_indicator(indicator):
+                try:
+                    if indicator == "20-Day SMA":
+                        sma = data['Close'].rolling(window=20).mean()
+                        fig.add_trace(go.Scatter(x=data.index, y=sma, mode='lines', name='SMA (20)'))
+                    elif indicator == "20-Day EMA":
+                        ema = data['Close'].ewm(span=20, adjust=False).mean()
+                        fig.add_trace(go.Scatter(x=data.index, y=ema, mode='lines', name='EMA (20)'))
+                    elif indicator == "20-Day Bollinger Bands":
+                        sma = data['Close'].rolling(window=20).mean()
+                        std = data['Close'].rolling(window=20).std()
+                        bb_upper = sma + 2 * std
+                        bb_lower = sma - 2 * std
+                        fig.add_trace(go.Scatter(x=data.index, y=bb_upper, mode='lines', name='BB Upper'))
+                        fig.add_trace(go.Scatter(x=data.index, y=bb_lower, mode='lines', name='BB Lower'))
+                    elif indicator == "VWAP":
+                        typical_price = (data['High'] + data['Low'] + data['Close']) / 3
+                        vwap = (typical_price * data['Volume']).cumsum() / data['Volume'].cumsum()
+                        fig.add_trace(go.Scatter(x=data.index, y=vwap, mode='lines', name='VWAP'))
+                except Exception as e:
+                    st.warning(f"Error adding indicator {indicator}: {str(e)}")
 
+            # Update layout
             fig.update_layout(
                 title=f"{ticker} Stock Price",
                 yaxis_title="Price",
@@ -148,19 +209,60 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 xaxis_rangeslider_visible=False
             )
 
-            for ind in indicators:
+            # Add indicators
+            for ind in indicators: # **'indicators' is now passed as argument**
                 add_indicator(ind)
 
-            # ... (Save Chart as Image and Gemini Analysis - No changes needed for now) ...
-            # ... (Keep Gemini part for later testing, but focus on chart display first) ...
-            # ... (For now, let's just return a placeholder result to avoid Gemini errors while debugging charting) ...
-            result = {"action": "Hold", "justification": "Placeholder analysis - Charting debug in progress."} # Placeholder
+            # Save chart as temporary PNG file and read image bytes
+            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
+                fig.write_image(tmpfile.name)
+                tmpfile_path = tmpfile.name
+            with open(tmpfile_path, "rb") as f:
+                image_bytes = f.read()
+            os.remove(tmpfile_path)
+
+            image_part = {
+                "data": image_bytes,
+                "mime_type": "image/png"
+            }
+
+            analysis_prompt = (
+                f"You are a Stock Trader specializing in Technical Analysis at a top financial institution. "
+                f"Analyze the stock chart for {ticker} based on its candlestick chart and the displayed technical indicators. "
+                f"Provide a detailed justification of your analysis, explaining what patterns, signals, and trends you observe. "
+                f"Then, based solely on the chart, provide a recommendation from the following options: "
+                f"'Strong Buy', 'Buy', 'Weak Buy', 'Hold', 'Weak Sell', 'Sell', or 'Strong Sell'. "
+                f"Return your output as a JSON object with two keys: 'action' and 'justification'."
+            )
+
+            contents = [
+                {"role": "user", "parts": [analysis_prompt]},
+                {"role": "user", "parts": [image_part]}
+            ]
+
+            response = gen_model.generate_content(contents=contents)
+
+            try:
+                result_text = response.text
+                json_start_index = result_text.find('{')
+                json_end_index = result_text.rfind('}') + 1
+                if json_start_index != -1 and json_end_index > json_start_index:
+                    json_string = result_text[json_start_index:json_end_index]
+                    result = json.loads(json_string)
+                else:
+                    raise ValueError("No valid JSON object found in the response")
+            except json.JSONDecodeError as e:
+                result = {"action": "Error", "justification": f"JSON Parsing error: {e}. Raw response text: {response.text}"}
+            except ValueError as ve:
+                result = {"action": "Error", "justification": f"Value Error: {ve}. Raw response text: {response.text}"}
+            except Exception as e:
+                result = {"action": "Error", "justification": f"General Error: {e}. Raw response text: {response.text}"}
 
             return fig, result
 
         except Exception as e:
             st.error(f"Error analyzing {ticker}: {str(e)}")
-            st.error(f"Analysis error details: {e}") # Print full error for analysis errors
+            st.error(f"Analysis error details: {e}")
             empty_fig = go.Figure()
             empty_fig.add_annotation(
                 text=f"Error during analysis: {str(e)}",
@@ -169,7 +271,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             )
             return empty_fig, {"action": "Error", "justification": f"Analysis error: {str(e)}"}
 
-    # Create tabs
+    # Create tabs: first tab for overall summary, subsequent tabs per ticker
     tab_names = ["Overall Summary"] + list(st.session_state["stock_data"].keys())
     tabs = st.tabs(tab_names)
 
@@ -177,16 +279,16 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
 
     for i, ticker in enumerate(st.session_state["stock_data"]):
         data = st.session_state["stock_data"][ticker]
-        fig, result = analyze_ticker(ticker, data)
+        fig, result = analyze_ticker(ticker, data, indicators) # **Pass 'indicators' here**
         overall_results.append({"Stock": ticker, "Recommendation": result.get("action", "N/A")})
         with tabs[i + 1]:
             st.subheader(f"Analysis for {ticker}")
-            st.plotly_chart(fig) # **Display the chart**
-            st.write("**Detailed Justification (Placeholder):**") # Indicate placeholder
+            st.plotly_chart(fig, key=f"plotly_chart_{ticker}") # **Added unique key**
+            st.write("**Detailed Justification:**")
             st.write(result.get("justification", "No justification provided."))
 
     with tabs[0]:
-        st.subheader("Overall Structured Recommendations (Placeholder)") # Indicate placeholder
+        st.subheader("Overall Structured Recommendations")
         df_summary = pd.DataFrame(overall_results)
         st.table(df_summary)
 else:
