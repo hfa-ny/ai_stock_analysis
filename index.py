@@ -508,16 +508,38 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                     </div>
                     """, unsafe_allow_html=True)
             with col3:
-                # Add financial metrics
+                # Add financial metrics with custom styling
                 metrics = get_financial_metrics(ticker)
                 if metrics:
+                    st.markdown("""
+                        <style>
+                            .financial-metrics {
+                                font-size: 0.8rem !important;
+                            }
+                            .financial-metrics .metric-label {
+                                font-size: 0.7rem !important;
+                                color: #666;
+                            }
+                            .financial-metrics .metric-value {
+                                font-size: 0.8rem !important;
+                                font-weight: bold;
+                            }
+                            .block-container {
+                                padding-top: 0rem;
+                                padding-bottom: 0rem;
+                            }
+                        </style>
+                    """, unsafe_allow_html=True)
+                    
                     with st.expander("Financial Metrics", expanded=True):
+                        st.markdown('<div class="financial-metrics">', unsafe_allow_html=True)
                         col1, col2 = st.columns(2)
                         for idx, (key, value) in enumerate(metrics.items()):
                             if idx % 2 == 0:
-                                col1.metric(key, value)
+                                col1.markdown(f'<div class="metric-label">{key}</div><div class="metric-value">{value}</div>', unsafe_allow_html=True)
                             else:
-                                col2.metric(key, value)
+                                col2.markdown(f'<div class="metric-label">{key}</div><div class="metric-value">{value}</div>', unsafe_allow_html=True)
+                        st.markdown('</div>', unsafe_allow_html=True)
             
             st.plotly_chart(fig, key=f"plotly_chart_{ticker}")
             st.write("**Detailed Justification:**")
