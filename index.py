@@ -62,9 +62,10 @@ show_timeframe_warning(selected_time_frame)
 
 # Technical indicators selection (applied to every ticker)
 st.sidebar.subheader("Technical Indicators")
+# Update the indicators selection list
 indicators = st.sidebar.multiselect(
     "Select Indicators:",
-    ["20-Day SMA", "20-Day EMA", "20-Day Bollinger Bands", "VWAP"],
+    ["20-Day SMA", "20-Day EMA", "20-Day Bollinger Bands", "VWAP", "RSI"],  # Added RSI
     default=["20-Day SMA"]
 )
 
@@ -264,6 +265,68 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                         typical_price = (data['High'] + data['Low'] + data['Close']) / 3
                         vwap = (typical_price * data['Volume']).cumsum() / data['Volume'].cumsum()
                         fig.add_trace(go.Scatter(x=data.index, y=vwap, mode='lines', name='VWAP'))
+                    elif indicator == "RSI":
+                        # Calculate RSI
+                        delta = data['Close'].diff()
+                        gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+                        loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+                        rs = gain / loss
+                        rsi = 100 - (100 / (1 + rs))
+                        
+                        # Add RSI subplot
+                        fig.add_trace(
+                            go.Scatter(
+                                x=data.index,
+                                y=rsi,
+                                name='RSI',
+                                yaxis="y2"
+                            )
+                        )
+                        
+                        # Update layout to include RSI subplot
+                        fig.update_layout(
+                            yaxis2=dict(
+                                title="RSI",
+                                overlaying="y",
+                                side="right",
+                                range=[0, 100],
+                                showgrid=False
+                            ),
+                            # Add RSI level lines
+                            shapes=[
+                                # Overbought line (70)
+                                dict(
+                                    type="line",
+                                    xref="paper",
+                                    x0=0,
+                                    x1=1,
+                                    y0=70,
+                                    y1=70,
+                                    yref="y2",
+                                    line=dict(
+                                        color="red",
+                                        width=1,
+                                        dash="dash"
+                                    )
+                                ),
+                                # Oversold line (30)
+                                dict(
+                                    type="line",
+                                    xref="paper",
+                                    x0=0,
+                                    x1=1,
+                                    y0=30,
+                                    y1=30,
+                                    yref="y2",
+                                    line=dict(
+                                        color="green",
+                                        width=1,
+                                        dash="dash"
+                                    )
+                                )
+                            ]
+                        )
+                        
                 except Exception as e:
                     st.warning(f"Error adding indicator {indicator}: {str(e)}")
 
