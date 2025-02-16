@@ -554,24 +554,39 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             if metrics:
                 st.markdown("""
                     <style>
-                        .metrics-row {
+                        .metrics-container {
                             display: flex;
-                            flex-wrap: wrap;
-                            gap: 1rem;
+                            flex-direction: row;
+                            flex-wrap: nowrap;
+                            overflow-x: auto;
+                            gap: 0.5rem;
+                            padding: 0.5rem 0;
                             margin-bottom: 1rem;
                         }
                         .metric-box {
-                            flex: 1;
-                            min-width: 120px;
-                            padding: 0.5rem;
+                            flex: 0 0 auto;
+                            min-width: 100px;
+                            max-width: 150px;
+                            padding: 0.3rem;
                             background-color: #f8f9fa;
                             border-radius: 4px;
                             text-align: center;
+                            font-size: 0.8rem;
+                        }
+                        .metric-label {
+                            color: #666;
+                            font-size: 0.7rem;
+                            margin-bottom: 0.2rem;
+                        }
+                        .metric-value {
+                            font-weight: bold;
+                            font-size: 0.8rem;
                         }
                     </style>
+                    <div class="metrics-container">
                 """, unsafe_allow_html=True)
                 
-                st.markdown('<div class="metrics-row">', unsafe_allow_html=True)
+                # Add metrics in a single row
                 for key, value in metrics.items():
                     st.markdown(f"""
                         <div class="metric-box">
@@ -579,6 +594,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                             <div class="metric-value">{value}</div>
                         </div>
                     """, unsafe_allow_html=True)
+                
                 st.markdown('</div>', unsafe_allow_html=True)
             
             # Third row: Chart and Analysis
