@@ -25,15 +25,35 @@ st.set_page_config(layout="wide", initial_sidebar_state="expanded")
 st.markdown("""
     <style>
         .block-container {
-            padding-top: 2rem;
-            padding-bottom: 0rem;
+            padding-top: 3rem !important;
+            padding-bottom: 1rem !important;
         }
         header {
-            margin-bottom: 2rem;
+            margin-bottom: 2rem !important;
         }
         .main > div {
-            padding-left: 2rem;
-            padding-right: 2rem;
+            padding-left: 2rem !important;
+            padding-right: 2rem !important;
+        }
+        .financial-metrics {
+            font-size: 0.8rem !important;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: space-between;
+        }
+        .metric-item {
+            flex: 1 1 auto;
+            min-width: 120px;
+            padding: 0.3rem;
+        }
+        .metric-label {
+            color: #666;
+            font-size: 0.7rem !important;
+        }
+        .metric-value {
+            font-weight: bold;
+            font-size: 0.8rem !important;
         }
         #MainMenu {visibility: visible;}
         header {visibility: visible;}
@@ -529,37 +549,17 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                     </div>
                     """, unsafe_allow_html=True)
             with col3:
-                # Add financial metrics with custom styling
                 metrics = get_financial_metrics(ticker)
                 if metrics:
-                    st.markdown("""
-                        <style>
-                            .financial-metrics {
-                                font-size: 0.8rem !important;
-                            }
-                            .financial-metrics .metric-label {
-                                font-size: 0.7rem !important;
-                                color: #666;
-                            }
-                            .financial-metrics .metric-value {
-                                font-size: 0.8rem !important;
-                                font-weight: bold;
-                            }
-                            .block-container {
-                                padding-top: 0rem;
-                                padding-bottom: 0rem;
-                            }
-                        </style>
-                    """, unsafe_allow_html=True)
-                    
                     with st.expander("Financial Metrics", expanded=True):
                         st.markdown('<div class="financial-metrics">', unsafe_allow_html=True)
-                        col1, col2 = st.columns(2)
-                        for idx, (key, value) in enumerate(metrics.items()):
-                            if idx % 2 == 0:
-                                col1.markdown(f'<div class="metric-label">{key}</div><div class="metric-value">{value}</div>', unsafe_allow_html=True)
-                            else:
-                                col2.markdown(f'<div class="metric-label">{key}</div><div class="metric-value">{value}</div>', unsafe_allow_html=True)
+                        for key, value in metrics.items():
+                            st.markdown(f"""
+                                <div class="metric-item">
+                                    <div class="metric-label">{key}</div>
+                                    <div class="metric-value">{value}</div>
+                                </div>
+                            """, unsafe_allow_html=True)
                         st.markdown('</div>', unsafe_allow_html=True)
             
             st.plotly_chart(fig, key=f"plotly_chart_{ticker}")
