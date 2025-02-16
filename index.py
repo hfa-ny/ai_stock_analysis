@@ -546,7 +546,15 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             col1, col2 = st.columns([3, 2])
             with col1:
                 latest_data = current_data.iloc[-1]  # Use current stock's data
-                st.subheader(f"Analysis for {ticker} (Open: <span style='font-size:0.8em'>${latest_data['Open']:.2f}</span> Close: <span style='font-size:0.8em'>${latest_data['Close']:.2f}</span>)", unsafe_allow_html=True)
+                # Use markdown instead of subheader for HTML formatting
+                st.markdown(f"""
+                    <h3 style='margin-bottom: 0px;'>
+                        Analysis for {ticker}
+                        <span style='font-size: 0.8em; font-weight: normal; color: #666;'>
+                            (Open: ${latest_data['Open']:.2f} Close: ${latest_data['Close']:.2f})
+                        </span>
+                    </h3>
+                """, unsafe_allow_html=True)
             with col2:
                 recommendation = result.get("action", "N/A")
                 # Color-code the recommendation
