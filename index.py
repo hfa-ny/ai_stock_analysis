@@ -520,8 +520,8 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
         with tabs[i + 1]:
             fig, result = fig_results[ticker]
             
-            # Create three columns for the header section
-            col1, col2, col3 = st.columns([2, 2, 3])
+            # First row: Title and Recommendation
+            col1, col2 = st.columns([3, 2])
             with col1:
                 st.subheader(f"Analysis for {ticker}")
             with col2:
@@ -548,20 +548,40 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                         <strong>Recommendation: {recommendation}</strong>
                     </div>
                     """, unsafe_allow_html=True)
-            with col3:
-                metrics = get_financial_metrics(ticker)
-                if metrics:
-                    with st.expander("Financial Metrics", expanded=True):
-                        st.markdown('<div class="financial-metrics">', unsafe_allow_html=True)
-                        for key, value in metrics.items():
-                            st.markdown(f"""
-                                <div class="metric-item">
-                                    <div class="metric-label">{key}</div>
-                                    <div class="metric-value">{value}</div>
-                                </div>
-                            """, unsafe_allow_html=True)
-                        st.markdown('</div>', unsafe_allow_html=True)
+
+            # Second row: Financial Metrics
+            metrics = get_financial_metrics(ticker)
+            if metrics:
+                st.markdown("""
+                    <style>
+                        .metrics-row {
+                            display: flex;
+                            flex-wrap: wrap;
+                            gap: 1rem;
+                            margin-bottom: 1rem;
+                        }
+                        .metric-box {
+                            flex: 1;
+                            min-width: 120px;
+                            padding: 0.5rem;
+                            background-color: #f8f9fa;
+                            border-radius: 4px;
+                            text-align: center;
+                        }
+                    </style>
+                """, unsafe_allow_html=True)
+                
+                st.markdown('<div class="metrics-row">', unsafe_allow_html=True)
+                for key, value in metrics.items():
+                    st.markdown(f"""
+                        <div class="metric-box">
+                            <div class="metric-label">{key}</div>
+                            <div class="metric-value">{value}</div>
+                        </div>
+                    """, unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
             
+            # Third row: Chart and Analysis
             st.plotly_chart(fig, key=f"plotly_chart_{ticker}")
             st.write("**Detailed Justification:**")
             st.write(result.get("justification", "No justification provided."))
