@@ -536,15 +536,16 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             with st.expander(f"Raw Data for {stock} ({selected_time_frame})"):
                 st.dataframe(stock_data)
 
-    # Display individual stock tabs
+    # Display individual stock tabs section
     for i, ticker in enumerate(st.session_state["stock_data"]):
         with tabs[i + 1]:
             fig, result = fig_results[ticker]
+            current_data = st.session_state["stock_data"][ticker]  # Get current stock's data
             
             # First row: Title and Recommendation
             col1, col2 = st.columns([3, 2])
             with col1:
-                latest_data = data.iloc[-1]
+                latest_data = current_data.iloc[-1]  # Use current stock's data
                 st.subheader(f"Analysis for {ticker} (Open: <span style='font-size:0.8em'>${latest_data['Open']:.2f}</span> Close: <span style='font-size:0.8em'>${latest_data['Close']:.2f}</span>)", unsafe_allow_html=True)
             with col2:
                 recommendation = result.get("action", "N/A")
