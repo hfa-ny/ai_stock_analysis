@@ -555,19 +555,22 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 st.markdown("""
                     <style>
                         .metrics-grid {
-                            display: grid;
-                            grid-auto-flow: column;
-                            grid-auto-columns: minmax(120px, 1fr);
+                            display: flex;
+                            flex-direction: row;
+                            flex-wrap: nowrap;
                             gap: 8px;
                             overflow-x: auto;
                             padding: 8px 0;
                             margin: 10px 0;
+                            width: 100%;
                         }
                         .metric-box {
+                            flex: 0 0 auto;
                             background-color: #f8f9fa;
                             border-radius: 4px;
                             padding: 8px;
                             text-align: center;
+                            min-width: 120px;
                         }
                         .metric-label {
                             color: #666;
@@ -581,18 +584,15 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                             white-space: nowrap;
                         }
                     </style>
-                    <div class="metrics-grid">
                 """, unsafe_allow_html=True)
                 
-                # Add metrics in a single row
-                metric_html = "".join([f"""
-                    <div class="metric-box">
-                        <div class="metric-label">{key}</div>
-                        <div class="metric-value">{value}</div>
-                    </div>
-                """ for key, value in metrics.items()])
+                # Create the metrics HTML without extra newlines
+                metrics_html = '<div class="metrics-grid">'
+                for key, value in metrics.items():
+                    metrics_html += f'<div class="metric-box"><div class="metric-label">{key}</div><div class="metric-value">{value}</div></div>'
+                metrics_html += '</div>'
                 
-                st.markdown(f'{metric_html}</div>', unsafe_allow_html=True)
+                st.markdown(metrics_html, unsafe_allow_html=True)
             
             # Third row: Chart and Analysis
             st.plotly_chart(fig, key=f"plotly_chart_{ticker}")
