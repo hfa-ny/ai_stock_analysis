@@ -430,6 +430,26 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             for ind in indicators: # **'indicators' is now passed as argument**
                 add_indicator(ind)
 
+            # Update the chart title and layout in analyze_ticker function
+            # Get latest prices
+            latest_data = data.iloc[-1]
+            latest_open = f"${latest_data['Open']:.2f}"
+            latest_close = f"${latest_data['Close']:.2f}"
+            
+            # Update layout with more margin and enhanced title
+            fig.update_layout(
+                title=dict(
+                    text=f"{ticker} Stock Price (Open: {latest_open} Close: {latest_close})",
+                    y=0.95,  # Move title up
+                    x=0.5,
+                    xanchor='center',
+                    yanchor='top',
+                    pad=dict(b=20)  # Add bottom padding
+                ),
+                margin=dict(t=80, b=50, l=50, r=50),  # Increase top margin
+                # ...rest of your layout settings...
+            )
+
             # Save chart as temporary PNG file and read image bytes
             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
                 fig.write_image(tmpfile.name)
@@ -463,7 +483,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 result_text = response.text
                 json_start_index = result_text.find('{')
                 json_end_index = result_text.rfind('}') + 1
-                if json_start_index != -1 and json_end_index > json_start_index:
+                if (json_start_index != -1 and json_end_index > json_start_index):
                     json_string = result_text[json_start_index:json_end_index]
                     result = json.loads(json_string)
                 else:
@@ -523,7 +543,8 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             # First row: Title and Recommendation
             col1, col2 = st.columns([3, 2])
             with col1:
-                st.subheader(f"Analysis for {ticker}")
+                latest_data = data.iloc[-1]
+                st.subheader(f"Analysis for {ticker} (Open: ${latest_data['Open']:.2f} Close: ${latest_data['Close']:.2f})")
             with col2:
                 recommendation = result.get("action", "N/A")
                 # Color-code the recommendation
