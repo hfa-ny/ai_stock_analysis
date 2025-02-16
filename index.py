@@ -287,17 +287,6 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             for ind in indicators: # **'indicators' is now passed as argument**
                 add_indicator(ind)
 
-            # Display raw data with better organization
-            if i == 0:  # Only in Overall Summary tab
-                st.subheader("Raw Data for All Stocks")
-                for stock, stock_data in st.session_state["stock_data"].items():
-                    with st.expander(f"View {stock} Data ({selected_time_frame})"):
-                        st.dataframe(stock_data)
-            else:  # In individual stock tabs
-                # Create an expander for the data table
-                with st.expander(f"Raw Data for {ticker} ({selected_time_frame})"):
-                    st.dataframe(data)
-
             # Save chart as temporary PNG file and read image bytes
             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
                 fig.write_image(tmpfile.name)
@@ -400,6 +389,23 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             st.plotly_chart(fig, key=f"plotly_chart_{ticker}")
             st.write("**Detailed Justification:**")
             st.write(result.get("justification", "No justification provided."))
+
+            # Replace the data display section in analyze_ticker function
+            # Display raw data with better organization
+            if i == 0:  # Only in Overall Summary tab
+                st.subheader("Raw Data for All Stocks")
+                # Use dict.items() only once to avoid duplicates
+                displayed_stocks = set()  # Track displayed stocks
+                for stock in st.session_state["stock_data"].keys():
+                    if stock not in displayed_stocks:  # Check if not already displayed
+                        displayed_stocks.add(stock)  # Add to tracking set
+                        stock_data = st.session_state["stock_data"][stock]
+                        with st.expander(f"Raw Data for {stock} ({selected_time_frame})"):
+                            st.dataframe(stock_data)
+            else:  # In individual stock tabs
+                # Only show data for the current ticker
+                with st.expander(f"Raw Data for {ticker} ({selected_time_frame})"):
+                    st.dataframe(data)
 
     with tabs[0]:
         st.subheader("Overall Structured Recommendations")
