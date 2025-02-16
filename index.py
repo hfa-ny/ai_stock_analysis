@@ -554,48 +554,45 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             if metrics:
                 st.markdown("""
                     <style>
-                        .metrics-container {
-                            display: flex;
-                            flex-direction: row;
-                            flex-wrap: nowrap;
+                        .metrics-grid {
+                            display: grid;
+                            grid-auto-flow: column;
+                            grid-auto-columns: minmax(120px, 1fr);
+                            gap: 8px;
                             overflow-x: auto;
-                            gap: 0.5rem;
-                            padding: 0.5rem 0;
-                            margin-bottom: 1rem;
+                            padding: 8px 0;
+                            margin: 10px 0;
                         }
                         .metric-box {
-                            flex: 0 0 auto;
-                            min-width: 100px;
-                            max-width: 150px;
-                            padding: 0.3rem;
                             background-color: #f8f9fa;
                             border-radius: 4px;
+                            padding: 8px;
                             text-align: center;
-                            font-size: 0.8rem;
                         }
                         .metric-label {
                             color: #666;
                             font-size: 0.7rem;
-                            margin-bottom: 0.2rem;
+                            margin-bottom: 4px;
+                            white-space: nowrap;
                         }
                         .metric-value {
                             font-weight: bold;
                             font-size: 0.8rem;
+                            white-space: nowrap;
                         }
                     </style>
-                    <div class="metrics-container">
+                    <div class="metrics-grid">
                 """, unsafe_allow_html=True)
                 
                 # Add metrics in a single row
-                for key, value in metrics.items():
-                    st.markdown(f"""
-                        <div class="metric-box">
-                            <div class="metric-label">{key}</div>
-                            <div class="metric-value">{value}</div>
-                        </div>
-                    """, unsafe_allow_html=True)
+                metric_html = "".join([f"""
+                    <div class="metric-box">
+                        <div class="metric-label">{key}</div>
+                        <div class="metric-value">{value}</div>
+                    </div>
+                """ for key, value in metrics.items()])
                 
-                st.markdown('</div>', unsafe_allow_html=True)
+                st.markdown(f'{metric_html}</div>', unsafe_allow_html=True)
             
             # Third row: Chart and Analysis
             st.plotly_chart(fig, key=f"plotly_chart_{ticker}")
