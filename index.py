@@ -18,8 +18,29 @@ genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 MODEL_NAME = 'gemini-2.0-flash'
 gen_model = genai.GenerativeModel(MODEL_NAME)
 
-# Set up Streamlit app
-st.set_page_config(layout="wide")
+# Update the page config and title section
+st.set_page_config(layout="wide", initial_sidebar_state="expanded")
+
+# Add custom CSS to fix header spacing
+st.markdown("""
+    <style>
+        .block-container {
+            padding-top: 2rem;
+            padding-bottom: 0rem;
+        }
+        header {
+            margin-bottom: 2rem;
+        }
+        .main > div {
+            padding-left: 2rem;
+            padding-right: 2rem;
+        }
+        #MainMenu {visibility: visible;}
+        header {visibility: visible;}
+        footer {visibility: hidden;}
+    </style>
+""", unsafe_allow_html=True)
+
 st.title("HFA AI-Powered Technical Stock Analysis")
 st.sidebar.header("Configuration")
 
