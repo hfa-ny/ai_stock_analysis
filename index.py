@@ -351,11 +351,25 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
 
     overall_results = []
 
-    # Modify the tab section where the analysis is displayed
+    # Inside the for loop where tabs are created
     for i, ticker in enumerate(st.session_state["stock_data"]):
         data = st.session_state["stock_data"][ticker]
         fig, result = analyze_ticker(ticker, data, indicators)
         overall_results.append({"Stock": ticker, "Recommendation": result.get("action", "N/A")})
+        
+        if i == 0:  # First iteration - set up Overall Summary tab
+            with tabs[0]:  # Overall Summary tab
+                st.subheader("Overall Structured Recommendations")
+                df_summary = pd.DataFrame(overall_results)
+                st.table(df_summary)
+                
+                # Display all stocks' data in Overall Summary
+                st.subheader("Raw Data for All Stocks")
+                for stock, stock_data in st.session_state["stock_data"].items():
+                    with st.expander(f"Raw Data for {stock} ({selected_time_frame})"):
+                        st.dataframe(stock_data)
+        
+        # Individual stock tabs
         with tabs[i + 1]:
             # Create two columns for the header section
             col1, col2 = st.columns([3, 2])
@@ -389,28 +403,11 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             st.plotly_chart(fig, key=f"plotly_chart_{ticker}")
             st.write("**Detailed Justification:**")
             st.write(result.get("justification", "No justification provided."))
+            
+            # Show only current stock's data in its tab
+            with st.expander(f"Raw Data for {ticker} ({selected_time_frame})"):
+                st.dataframe(data)
 
-            # Replace the data display section in analyze_ticker function
-            # Display raw data with better organization
-            if i == 0:  # Only in Overall Summary tab
-                st.subheader("Raw Data for All Stocks")
-                # Use dict.items() only once to avoid duplicates
-                displayed_stocks = set()  # Track displayed stocks
-                for stock in st.session_state["stock_data"].keys():
-                    if stock not in displayed_stocks:  # Check if not already displayed
-                        displayed_stocks.add(stock)  # Add to tracking set
-                        stock_data = st.session_state["stock_data"][stock]
-                        with st.expander(f"Raw Data for {stock} ({selected_time_frame})"):
-                            st.dataframe(stock_data)
-            else:  # In individual stock tabs
-                # Only show data for the current ticker
-                with st.expander(f"Raw Data for {ticker} ({selected_time_frame})"):
-                    st.dataframe(data)
-
-    with tabs[0]:
-        st.subheader("Overall Structured Recommendations")
-        df_summary = pd.DataFrame(overall_results)
-        st.table(df_summary)
 else:
     st.info("Please fetch stock data using the sidebar.")
 
