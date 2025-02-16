@@ -345,32 +345,37 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             )
             return empty_fig, {"action": "Error", "justification": f"Analysis error: {str(e)}"}
 
-    # Create tabs: first tab for overall summary, subsequent tabs per ticker
-    tab_names = ["Overall Summary"] + list(st.session_state["stock_data"].keys())
-    tabs = st.tabs(tab_names)
-
+    # First, collect all results
     overall_results = []
+    fig_results = {}
 
-    # Inside the for loop where tabs are created
-    for i, ticker in enumerate(st.session_state["stock_data"]):
+    # First loop to collect all analyses
+    for ticker in st.session_state["stock_data"]:
         data = st.session_state["stock_data"][ticker]
         fig, result = analyze_ticker(ticker, data, indicators)
         overall_results.append({"Stock": ticker, "Recommendation": result.get("action", "N/A")})
+        fig_results[ticker] = (fig, result)
+
+    # Now create tabs and display results
+    tab_names = ["Overall Summary"] + list(st.session_state["stock_data"].keys())
+    tabs = st.tabs(tab_names)
+
+    # Display Overall Summary tab
+    with tabs[0]:
+        st.subheader("Overall Structured Recommendations")
+        df_summary = pd.DataFrame(overall_results)
+        st.table(df_summary)
         
-        if i == 0:  # First iteration - set up Overall Summary tab
-            with tabs[0]:  # Overall Summary tab
-                st.subheader("Overall Structured Recommendations")
-                df_summary = pd.DataFrame(overall_results)
-                st.table(df_summary)
-                
-                # Display all stocks' data in Overall Summary
-                st.subheader("Raw Data for All Stocks")
-                for stock, stock_data in st.session_state["stock_data"].items():
-                    with st.expander(f"Raw Data for {stock} ({selected_time_frame})"):
-                        st.dataframe(stock_data)
-        
-        # Individual stock tabs
+        # Display all stocks' data in Overall Summary
+        st.subheader("Raw Data for All Stocks")
+        for stock, stock_data in st.session_state["stock_data"].items():
+            with st.expander(f"Raw Data for {stock} ({selected_time_frame})"):
+                st.dataframe(stock_data)
+
+    # Display individual stock tabs
+    for i, ticker in enumerate(st.session_state["stock_data"]):
         with tabs[i + 1]:
+            fig, result = fig_results[ticker]
             # Create two columns for the header section
             col1, col2 = st.columns([3, 2])
             with col1:
