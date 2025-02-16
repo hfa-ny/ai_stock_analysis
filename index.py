@@ -94,7 +94,7 @@ if st.sidebar.button("Fetch Data"):
                 start=adjusted_start_date,
                 end=end_date,
                 interval=interval,
-                prepost=True  # Include pre/post market hours for intraday
+                prepost=False  # Changed to False to exclude pre/post market hours
             )
 
             if data is not None and not data.empty:
@@ -170,6 +170,9 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
 
             # Add this before creating the chart
             if selected_time_frame in ["5min", "15min", "1hour"]:
+                # Remove data points with no volume
+                data = data[data['Volume'] > 0]
+                
                 # Remove outliers
                 Q1 = data['Close'].quantile(0.25)
                 Q3 = data['Close'].quantile(0.75)
@@ -183,7 +186,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                     (data['Close'] <= upper_bound)
                 ]
 
-                # Forward fill small gaps
+                # Forward fill small gaps (only for remaining data)
                 data = data.fillna(method='ffill', limit=3)
 
                 # Remove any remaining NaN values
