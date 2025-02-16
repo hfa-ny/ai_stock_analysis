@@ -1,4 +1,4 @@
-## AI-Powered Technical Analysis Dashboard (Gemini 2.0)
+## Gemini AI-Powered Stocks Technical Analysis 
 
 # Libraries - Importing necessary Python libraries
 import streamlit as st  # Streamlit for creating the web application interface
@@ -20,7 +20,7 @@ gen_model = genai.GenerativeModel(MODEL_NAME)
 
 # Set up Streamlit app
 st.set_page_config(layout="wide")
-st.title("AI-Powered Technical Stock Analysis Dashboard")
+st.title("HFA AI-Powered Technical Stock Analysis")
 st.sidebar.header("Configuration")
 
 # Input for multiple stock tickers (comma-separated)
