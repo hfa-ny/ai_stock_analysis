@@ -545,7 +545,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             col1, col2 = st.columns([3, 2])
             with col1:
                 latest_data = data.iloc[-1]
-                st.subheader(f"Analysis for {ticker} (Open: ${latest_data['Open']:.2f} Close: ${latest_data['Close']:.2f})")
+                st.subheader(f"Analysis for {ticker} (Open: <span style='font-size:0.8em'>${latest_data['Open']:.2f}</span> Close: <span style='font-size:0.8em'>${latest_data['Close']:.2f}</span>)", unsafe_allow_html=True)
             with col2:
                 recommendation = result.get("action", "N/A")
                 # Color-code the recommendation
