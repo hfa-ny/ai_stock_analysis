@@ -444,7 +444,8 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                     x=0.5,
                     xanchor='center',
                     yanchor='top',
-                    pad=dict(b=20)  # Add bottom padding
+                    pad=dict(b=20),  # Add bottom padding
+                    font=dict(size=12)  # Set font size to be smaller
                 ),
                 margin=dict(t=80, b=50, l=50, r=50),  # Increase top margin
                 # ...rest of your layout settings...
