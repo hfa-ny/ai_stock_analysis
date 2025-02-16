@@ -127,6 +127,42 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             return data.iloc[::sample_interval]
         return data
 
+    # Add this function before analyze_ticker
+    def get_financial_metrics(ticker_symbol):
+        """Get key financial metrics for a stock"""
+        try:
+            ticker = yf.Ticker(ticker_symbol)
+            info = ticker.info
+            
+            # Key financial metrics to display
+            metrics = {
+                "Market Cap": info.get('marketCap', 'N/A'),
+                "P/E Ratio": info.get('trailingPE', 'N/A'),
+                "Forward P/E": info.get('forwardPE', 'N/A'),
+                "PEG Ratio": info.get('pegRatio', 'N/A'),
+                "Price/Book": info.get('priceToBook', 'N/A'),
+                "Dividend Yield": info.get('dividendYield', 'N/A'),
+                "52 Week High": info.get('fiftyTwoWeekHigh', 'N/A'),
+                "52 Week Low": info.get('fiftyTwoWeekLow', 'N/A'),
+                "50 Day MA": info.get('fiftyDayAverage', 'N/A'),
+                "200 Day MA": info.get('twoHundredDayAverage', 'N/A'),
+            }
+            
+            # Format numerical values
+            for key, value in metrics.items():
+                if isinstance(value, (int, float)):
+                    if key == "Market Cap":
+                        metrics[key] = f"${value:,.0f}"
+                    elif key == "Dividend Yield" and value is not None:
+                        metrics[key] = f"{value:.2%}"
+                    else:
+                        metrics[key] = f"{value:.2f}"
+                        
+            return metrics
+        except Exception as e:
+            st.warning(f"Error fetching financial data for {ticker_symbol}: {str(e)}")
+            return {}
+
     # Define a function to build chart, call the Gemini API and return structured result
     def analyze_ticker(ticker, data, indicators): # **Pass 'indicators' as argument**
         try:
@@ -442,8 +478,9 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
     for i, ticker in enumerate(st.session_state["stock_data"]):
         with tabs[i + 1]:
             fig, result = fig_results[ticker]
-            # Create two columns for the header section
-            col1, col2 = st.columns([3, 2])
+            
+            # Create three columns for the header section
+            col1, col2, col3 = st.columns([2, 2, 3])
             with col1:
                 st.subheader(f"Analysis for {ticker}")
             with col2:
@@ -470,6 +507,17 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                         <strong>Recommendation: {recommendation}</strong>
                     </div>
                     """, unsafe_allow_html=True)
+            with col3:
+                # Add financial metrics
+                metrics = get_financial_metrics(ticker)
+                if metrics:
+                    with st.expander("Financial Metrics", expanded=True):
+                        col1, col2 = st.columns(2)
+                        for idx, (key, value) in enumerate(metrics.items()):
+                            if idx % 2 == 0:
+                                col1.metric(key, value)
+                            else:
+                                col2.metric(key, value)
             
             st.plotly_chart(fig, key=f"plotly_chart_{ticker}")
             st.write("**Detailed Justification:**")
