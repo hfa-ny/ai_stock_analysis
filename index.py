@@ -356,13 +356,42 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
 
     overall_results = []
 
+    # Modify the tab section where the analysis is displayed
     for i, ticker in enumerate(st.session_state["stock_data"]):
         data = st.session_state["stock_data"][ticker]
-        fig, result = analyze_ticker(ticker, data, indicators) # **Pass 'indicators' here**
+        fig, result = analyze_ticker(ticker, data, indicators)
         overall_results.append({"Stock": ticker, "Recommendation": result.get("action", "N/A")})
         with tabs[i + 1]:
-            st.subheader(f"Analysis for {ticker}")
-            st.plotly_chart(fig, key=f"plotly_chart_{ticker}") # **Added unique key**
+            # Create two columns for the header section
+            col1, col2 = st.columns([3, 2])
+            with col1:
+                st.subheader(f"Analysis for {ticker}")
+            with col2:
+                recommendation = result.get("action", "N/A")
+                # Color-code the recommendation
+                color = {
+                    "Strong Buy": "green",
+                    "Buy": "lightgreen",
+                    "Weak Buy": "palegreen",
+                    "Hold": "yellow",
+                    "Weak Sell": "pink",
+                    "Sell": "lightcoral",
+                    "Strong Sell": "red"
+                }.get(recommendation, "gray")
+                
+                st.markdown(f"""
+                    <div style='
+                        background-color: {color};
+                        padding: 10px;
+                        border-radius: 5px;
+                        text-align: center;
+                        margin-top: 20px;
+                    '>
+                        <strong>Recommendation: {recommendation}</strong>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            st.plotly_chart(fig, key=f"plotly_chart_{ticker}")
             st.write("**Detailed Justification:**")
             st.write(result.get("justification", "No justification provided."))
 
