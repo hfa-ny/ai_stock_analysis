@@ -287,10 +287,16 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             for ind in indicators: # **'indicators' is now passed as argument**
                 add_indicator(ind)
 
-            # Display raw data for short timeframes - For debugging chart gaps/spikes
-            if selected_time_frame in ["5min", "15min", "1hour"]:
-                st.write("### Raw Data (for timeframe inspection)")
-                st.dataframe(data)
+            # Display raw data with better organization
+            if i == 0:  # Only in Overall Summary tab
+                st.subheader("Raw Data for All Stocks")
+                for stock, stock_data in st.session_state["stock_data"].items():
+                    with st.expander(f"View {stock} Data ({selected_time_frame})"):
+                        st.dataframe(stock_data)
+            else:  # In individual stock tabs
+                # Create an expander for the data table
+                with st.expander(f"Raw Data for {ticker} ({selected_time_frame})"):
+                    st.dataframe(data)
 
             # Save chart as temporary PNG file and read image bytes
             with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
