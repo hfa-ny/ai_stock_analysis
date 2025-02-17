@@ -542,55 +542,16 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             "Strong Sell": "red"
         }
         
-        # Create HTML table with styling
-        html_table = """
-            <style>
-                .summary-table {
-                    width: 100%;
-                    border-collapse: collapse;
-                    margin: 10px 0;
-                    font-size: 0.9em;
-                }
-                .summary-table th, .summary-table td {
-                    padding: 8px;
-                    text-align: left;
-                    border: 1px solid #ddd;
-                }
-                .summary-table th {
-                    background-color: #f8f9fa;
-                    font-weight: bold;
-                }
-                .recommendation-cell {
-                    padding: 5px 10px;
-                    border-radius: 4px;
-                    color: black;
-                    text-align: center;
-                }
-            </style>
-            <table class="summary-table">
-                <tr>
-                    <th>Stock</th>
-                    <th>Recommendation</th>
-                </tr>
-        """
+        # Create compact HTML without extra whitespace or newlines
+        html_table = '<style>.summary-table{width:100%;border-collapse:collapse;margin:10px 0;font-size:0.9em;}.summary-table th,.summary-table td{padding:8px;text-align:left;border:1px solid #ddd;}.summary-table th{background-color:#f8f9fa;font-weight:bold;}.recommendation-cell{padding:5px 10px;border-radius:4px;color:black;text-align:center;}</style><table class="summary-table"><tr><th>Stock</th><th>Recommendation</th></tr>'
         
+        # Add rows without extra formatting
         for _, row in df_summary.iterrows():
             color = recommendation_colors.get(row['Recommendation'], 'gray')
-            html_table += f"""
-                <tr>
-                    <td>{row['Stock']}</td>
-                    <td>
-                        <div class="recommendation-cell" style="background-color: {color}">
-                            {row['Recommendation']}
-                        </div>
-                    </td>
-                </tr>
-            """
+            html_table += f'<tr><td>{row["Stock"]}</td><td><div class="recommendation-cell" style="background-color:{color}">{row["Recommendation"]}</div></td></tr>'
         
-        html_table += "</table>"
+        html_table += '</table>'
         st.markdown(html_table, unsafe_allow_html=True)
-        
-        # Rest of the Overall Summary tab code...
 
         # Display all stocks' data in Overall Summary
         st.subheader("Raw Data for All Stocks")
