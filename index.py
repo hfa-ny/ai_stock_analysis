@@ -98,6 +98,7 @@ def show_timeframe_warning(selected_timeframe):
 selected_time_frame = st.sidebar.selectbox(
     "Select Time Frame",
     list(time_frame_options.keys())
+    index=list(time_frame_options.keys()).index("day") 
 )
 show_timeframe_warning(selected_time_frame)
 
