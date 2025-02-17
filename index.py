@@ -65,7 +65,7 @@ st.title("HFA AI-Powered Technical Stock Analysis")
 st.sidebar.header("Configuration")
 
 # Input for multiple stock tickers (comma-separated)
-tickers_input = st.sidebar.text_input("Enter Stock Tickers (comma-separated):", "AAPL,MSFT")
+tickers_input = st.sidebar.text_input("Enter Stock Tickers (comma-separated):", "AAPL,^GSPC")
 tickers = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
 
 # Set the date range: default is one year before today to today
@@ -78,8 +78,8 @@ end_date = st.sidebar.date_input("End Date", value=end_date_default)
 # Update the time frame options with only supported intervals
 time_frame_options = {
     "5min": {"interval": "5m", "days": 10, "max_points": None},
-    "15min": {"interval": "15m", "days": 14, "max_points": None},
-    "1hour": {"interval": "60m", "days": 45, "max_points": None},
+    "15min": {"interval": "15m", "days": 30, "max_points": None},
+    "1hour": {"interval": "60m", "days": 90, "max_points": None},
     "day": {"interval": "1d", "days": 730, "max_points": None},
     "week": {"interval": "1wk", "days": 730, "max_points": None}
 }

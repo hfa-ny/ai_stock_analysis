@@ -157,4 +157,6 @@ To use the AI-powered analysis, you need a Google Gemini API key.
 
 The AI recommendations are based solely on the technical chart patterns and indicators provided to the Gemini model. They do not consider fundamental analysis, news events, economic factors, or your personal financial situation.
 
+*https://python-yahoofinance.readthedocs.io/en/latest/api.html Yahoo Finance API documentation.
+
 Use this dashboard responsibly and at your own risk.
