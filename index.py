@@ -65,7 +65,7 @@ st.title("HFA AI-Powered Technical Stock Analysis")
 st.sidebar.header("Configuration")
 
 # Input for multiple stock tickers (comma-separated)
-tickers_input = st.sidebar.text_input("Enter Stock Tickers (comma-separated):", "AAPL,MSFT,GOOG")
+tickers_input = st.sidebar.text_input("Enter Stock Tickers (comma-separated):", "AAPL,MSFT")
 tickers = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
 
 # Set the date range: default is one year before today to today
