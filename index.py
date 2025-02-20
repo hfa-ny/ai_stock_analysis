@@ -14,6 +14,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 import pandas_market_calendars as mcal
 import requests.exceptions
+import requests
 
 # Add this helper function at the top of the file, after imports
 def safe_format_price(value):
@@ -164,31 +165,101 @@ indicators = st.sidebar.multiselect(
     default=["20-Day SMA"]
 )
 
+def fetch_yahoo_finance_data(ticker, start_date, end_date):
+    """Backup method to fetch data directly from Yahoo Finance API"""
+    try:
+        # Convert dates to UNIX timestamps
+        start_timestamp = int(pd.Timestamp(start_date).timestamp())
+        end_timestamp = int(pd.Timestamp(end_date).timestamp())
+        
+        # Construct the URL
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?period1={start_timestamp}&period2={end_timestamp}&interval=1d"
+        
+        # Add headers to mimic a browser request
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+        
+        # Make the request
+        response = requests.get(url, headers=headers)
+        data = response.json()
+        
+        # Extract price data
+        timestamps = data['chart']['result'][0]['timestamp']
+        quote = data['chart']['result'][0]['indicators']['quote'][0]
+        
+        # Create DataFrame
+        df = pd.DataFrame({
+            'Open': quote['open'],
+            'High': quote['high'],
+            'Low': quote['low'],
+            'Close': quote['close'],
+            'Volume': quote['volume']
+        }, index=pd.to_datetime(timestamps, unit='s'))
+        
+        return df
+    except Exception as e:
+        st.sidebar.error(f"Backup data fetch failed: {str(e)}")
+        return pd.DataFrame()
+
 def fetch_with_retry(ticker, start_date, end_date, interval, max_retries=3, delay=2):
     """Fetch stock data with retry logic"""
     for attempt in range(max_retries):
         try:
-            # Create a new Ticker instance each time
-            stock = yf.Ticker(ticker)
-            stock.cache_clear()  # Clear any cached data
+            # Create a Ticker instance and get history directly
+            tick = yf.Ticker(ticker)
             
-            # Force numeric data types when downloading
-            data = stock.history(
-                start=start_date,
-                end=end_date,
+            # Clear any cached data
+            tick.cache_clear()
+            
+            # Get info first to verify connection
+            try:
+                info = tick.fast_info
+            except:
+                pass  # Skip if info fetch fails
+                
+            # Use period instead of start/end dates for more reliable fetching
+            if isinstance(start_date, datetime):
+                days_diff = (end_date - start_date).days
+            else:
+                days_diff = (end_date - datetime.combine(start_date, datetime.min.time())).days
+                
+            # Convert days to period string
+            if days_diff <= 7:
+                period = "7d"
+            elif days_diff <= 30:
+                period = "1mo"
+            elif days_diff <= 90:
+                period = "3mo"
+            elif days_diff <= 365:
+                period = "1y"
+            else:
+                period = "2y"
+                
+            # Fetch data using period instead of date range
+            data = tick.history(
+                period=period,
                 interval=interval,
+                auto_adjust=True,
                 actions=False,
-                prepost=False,
-                repair=True,  # Enable auto-repair of missing data
-                keepna=False,  # Remove NaN values
-                ignore_tz=True  # Ignore timezone issues
+                prepost=False
             )
             
             if not data.empty:
+                # Convert index to datetime if needed
+                if not isinstance(data.index, pd.DatetimeIndex):
+                    data.index = pd.to_datetime(data.index)
+                    
+                # Filter to requested date range after fetching
+                if isinstance(start_date, datetime):
+                    mask = (data.index >= start_date) & (data.index <= end_date)
+                else:
+                    mask = (data.index >= pd.Timestamp(start_date)) & (data.index <= pd.Timestamp(end_date))
+                data = data[mask]
+                
                 # Verify data integrity and convert to numeric
                 for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
                     if col in data.columns:
-                        # Convert to string first to handle any unexpected data types
                         data[col] = pd.to_numeric(data[col].astype(str), errors='coerce')
                 
                 # Drop any rows with NaN values after conversion
@@ -197,13 +268,20 @@ def fetch_with_retry(ticker, start_date, end_date, interval, max_retries=3, dela
                 if not data.empty:
                     return data
             
-            if attempt < max_retries - 1:
-                time.sleep(delay * (attempt + 1))
+            st.sidebar.warning(f"Attempt {attempt + 1}: No data received for {ticker}, retrying...")
+            time.sleep(delay * (attempt + 1))
             
         except Exception as e:
             if attempt == max_retries - 1:
                 raise Exception(f"Failed to fetch data after {max_retries} attempts: {str(e)}")
+            st.sidebar.warning(f"Attempt {attempt + 1} failed: {str(e)}, retrying...")
             time.sleep(delay * (attempt + 1))
+    
+    st.sidebar.info("Trying backup data source...")
+    backup_data = fetch_yahoo_finance_data(ticker, start_date, end_date)
+    
+    if not backup_data.empty:
+        return backup_data
     
     return pd.DataFrame()
 
@@ -756,49 +834,40 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
     # Display individual stock tabs section
     for i, ticker in enumerate(st.session_state["stock_data"]):
         with tabs[i + 1]:
+            # Get the data and ensure it's properly converted
+            data = st.session_state["stock_data"][ticker].copy()
+            
+            # Ensure numeric types before displaying
+            numeric_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+            for col in numeric_columns:
+                if col in data.columns:
+                    try:
+                        data[col] = pd.to_numeric(data[col].astype(str), errors='coerce')
+                    except Exception as e:
+                        st.warning(f"Warning: Could not convert {col} column to numeric: {str(e)}")
+            
             fig, result = fig_results[ticker]
-            current_data = st.session_state["stock_data"][ticker]  # Get current stock's data
             
             # First row: Title and Recommendation
             col1, col2 = st.columns([3, 2])
             with col1:
-                latest_data = current_data.iloc[-1]  # Use current stock's data
-                # Fix the string formatting by explicitly converting to float
-                open_price = safe_format_price(latest_data['Open'])
-                close_price = safe_format_price(latest_data['Close'])
-                
-                st.markdown(f"""
-                    <h3 style='margin-bottom: 0px;'>
-                        Analysis for {ticker}
-                        <span style='font-size: 0.8em; font-weight: normal; color: #666;'>
-                            (Open: {open_price} Close: {close_price})
-                        </span>
-                    </h3>
-                """, unsafe_allow_html=True)
-            with col2:
-                recommendation = result.get("action", "N/A")
-                # Color-code the recommendation
-                color = {
-                    "Strong Buy": "green",
-                    "Buy": "lightgreen",
-                    "Weak Buy": "palegreen",
-                    "Hold": "yellow",
-                    "Weak Sell": "pink",
-                    "Sell": "lightcoral",
-                    "Strong Sell": "red"
-                }.get(recommendation, "gray")
-                
-                st.markdown(f"""
-                    <div style='
-                        background-color: {color};
-                        padding: 10px;
-                        border-radius: 5px;
-                        text-align: center;
-                        margin-top: 20px;
-                    '>
-                        <strong>Recommendation: {recommendation}</strong>
-                    </div>
+                try:
+                    latest_data = data.iloc[-1]
+                    open_price = safe_format_price(latest_data.get('Open'))
+                    close_price = safe_format_price(latest_data.get('Close'))
+                    
+                    st.markdown(f"""
+                        <h3 style='margin-bottom: 0px;'>
+                            Analysis for {ticker}
+                            <span style='font-size: 0.8em; font-weight: normal; color: #666;'>
+                                (Open: {open_price} Close: {close_price})
+                            </span>
+                        </h3>
                     """, unsafe_allow_html=True)
+                except Exception as e:
+                    st.error(f"Error displaying price data: {str(e)}")
+                    
+            # ... rest of the tab display code remains the same ...
 
             # Second row: Financial Metrics
             metrics = get_financial_metrics(ticker)
