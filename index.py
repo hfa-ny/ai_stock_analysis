@@ -642,56 +642,79 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
 
     # Display Overall Summary tab
     with tabs[0]:
+        st.markdown("## Market Overview")
+        
         st.markdown("""
             <style>
-            .modern-table {
+            .market-container {
+                background: white;
+                border-radius: 8px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                margin: 1.5rem 0;
+                overflow: hidden;
+                padding: 0.5rem;
+            }
+            .market-table {
                 width: 100%;
                 border-collapse: collapse;
-                background-color: white;
-                margin: 1rem 0;
+                border-spacing: 0;
             }
-            .modern-table th {
-                background-color: #f8f9fa;
-                padding: 12px 16px;
+            .market-table th {
+                background: #f8f9fa;
+                padding: 16px 20px;
                 text-align: left;
                 font-weight: 600;
+                color: #374151;
                 border-bottom: 2px solid #e5e7eb;
             }
-            .modern-table td {
-                padding: 12px 16px;
+            .market-table td {
+                padding: 16px 20px;
                 border-bottom: 1px solid #e5e7eb;
+                vertical-align: middle;
             }
-            .modern-table tr:hover {
-                background-color: #f9fafb;
+            .market-table tr:last-child td {
+                border-bottom: none;
             }
-            .price-info {
+            .market-table tr:hover {
+                background: #f9fafb;
+                transition: background-color 0.2s ease;
+            }
+            .market-symbol {
+                font-weight: 600;
+                font-size: 1.1em;
+                color: #111827;
+            }
+            .market-price {
                 color: #4b5563;
             }
-            .recommendation-badge {
+            .market-rec {
                 display: inline-block;
-                padding: 4px 12px;
-                border-radius: 4px;
+                padding: 6px 16px;
+                border-radius: 6px;
                 font-weight: 500;
-                min-width: 100px;
+                min-width: 110px;
                 text-align: center;
+                border: 1px solid rgba(0,0,0,0.1);
+                box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+                transition: all 0.2s ease;
+            }
+            .market-rec:hover {
+                transform: translateY(-1px);
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             }
             </style>
+            
+            <div class="market-container">
+                <table class="market-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 20%;">Symbol</th>
+                            <th style="width: 45%;">Latest Prices</th>
+                            <th style="width: 35%; text-align: center;">AI Recommendation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
         """, unsafe_allow_html=True)
-        
-        st.markdown("## Market Overview", True)
-        
-        # Display the modern table
-        table_html = """
-            <table class="modern-table">
-                <thead>
-                    <tr>
-                        <th>Symbol</th>
-                        <th>Latest Prices</th>
-                        <th>AI Analysis</th>
-                    </tr>
-                </thead>
-                <tbody>
-        """
         
         for ticker in st.session_state["stock_data"]:
             data = st.session_state["stock_data"][ticker]
@@ -699,103 +722,41 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             recommendation = next((item["Recommendation"] for item in overall_results if item["Stock"] == ticker), "N/A")
             color = RECOMMENDATION_COLORS.get(recommendation, "rgba(128, 128, 128, 0.7)")
             
-            table_html += f"""
+            st.markdown(f"""
                 <tr>
-                    <td><strong>{ticker}</strong></td>
-                    <td class="price-info">Open: {safe_format_price(latest_data['Open'])} · Close: {safe_format_price(latest_data['Close'])}</td>
-                    <td><span class="recommendation-badge" style="background-color: {color}">{recommendation}</span></td>
+                    <td><span class="market-symbol">{ticker}</span></td>
+                    <td class="market-price">Open: {safe_format_price(latest_data['Open'])} · Close: {safe_format_price(latest_data['Close'])}</td>
+                    <td style="text-align: center;"><span class="market-rec" style="background-color: {color}">{recommendation}</span></td>
                 </tr>
-            """
+            """, unsafe_allow_html=True)
         
-        table_html += """
-                </tbody>
-            </table>
-        """
-        st.markdown(table_html, unsafe_allow_html=True)
+        st.markdown("</tbody></table></div>", unsafe_allow_html=True)
 
-        # Add spacing after the table
-        st.markdown("<div style='height: 2rem;'></div>", unsafe_allow_html=True)
-        
-        # Historical data section with improved header
+        # Add spacing and section header after the market overview table
         st.markdown("""
-            <div style='border-top: 1px solid #e5e7eb; padding-top: 2rem; margin-top: 1rem;'>
-                <h2>Historical Price Data</h2>
-                <p style='color: #666; font-size: 0.9em; margin: 0.5rem 0 1.5rem 0;'>
-                    Expand each symbol below to view detailed historical data and quick statistics.
-                </p>
-            </div>
+            <style>
+            .section-spacer {
+                margin: 2.5rem 0;
+                border-top: 1px solid #e5e7eb;
+            }
+            .historical-header {
+                margin: 2rem 0 1rem 0;
+                color: #111827;
+            }
+            .historical-desc {
+                color: #6b7280;
+                font-size: 0.9em;
+                margin-bottom: 1.5rem;
+            }
+            </style>
+            
+            <div class="section-spacer"></div>
+            <h2 class="historical-header">Historical Price Data</h2>
+            <p class="historical-desc">
+                Expand each symbol below to view detailed historical data and performance metrics.
+                Data includes full price history and calculated statistics for the selected time period.
+            </p>
         """, unsafe_allow_html=True)
-
-        for ticker in st.session_state["stock_data"]:
-            data = st.session_state["stock_data"][ticker].copy()
-            
-            # Sort data by date in descending order
-            data = data.sort_index(ascending=False)
-            
-            with st.expander(f"📊 {ticker} Historical Data - {len(data)} rows ({selected_time_frame})", expanded=False):
-                # Format the dataframe with enhanced styling
-                styled_df = data.style.format({
-                    'Open': '${:,.2f}',
-                    'High': '${:,.2f}',
-                    'Low': '${:,.2f}',
-                    'Close': '${:,.2f}',
-                    'Volume': '{:,.0f}'
-                }).set_properties(**{
-                    'background-color': '#ffffff',
-                    'color': '#333333',
-                    'border': '1px solid #e5e7eb',
-                    'padding': '8px'
-                }).set_table_styles([
-                    {'selector': 'th', 'props': [
-                        ('background-color', '#f8f9fa'),
-                        ('color', '#1f2937'),
-                        ('font-weight', 'bold'),
-                        ('border', '1px solid #e5e7eb'),
-                        ('padding', '8px')
-                    ]},
-                    {'selector': 'tr:hover', 'props': [
-                        ('background-color', '#f9fafb')
-                    ]}
-                ])
-
-                st.dataframe(
-                    styled_df,
-                    use_container_width=True,
-                    height=400
-                )
-
-                # Add summary statistics below the table
-                cols = st.columns(4)
-                
-                # Calculate statistics
-                latest = data.iloc[0]
-                oldest = data.iloc[-1]
-                price_change = ((latest['Close'] - oldest['Close']) / oldest['Close']) * 100
-                avg_volume = data['Volume'].mean()
-                
-                with cols[0]:
-                    st.metric(
-                        "Trading Days",
-                        f"{len(data):,}"
-                    )
-                with cols[1]:
-                    st.metric(
-                        "Price Change",
-                        f"{abs(price_change):,.2f}%",
-                        delta=f"{price_change:,.2f}%",
-                        delta_color="normal" if price_change >= 0 else "inverse"
-                    )
-                with cols[2]:
-                    st.metric(
-                        "Trading Range",
-                        f"${data['High'].max():,.2f}",
-                        f"Low: ${data['Low'].min():,.2f}"
-                    )
-                with cols[3]:
-                    st.metric(
-                        "Avg Volume",
-                        f"{avg_volume:,.0f}"
-                    )
 
     # Display individual stock tabs section
     for i, ticker in enumerate(st.session_state["stock_data"]):
@@ -920,7 +881,7 @@ else:
                 
 #                 # Verify data quality
 #                 missing_data = test_data.isnull().sum()
-#                 if missing_data.sum() > 0:
+#                 if (missing_data.sum() > 0):
 #                     st.sidebar.warning(f"⚠️ {test_ticker}: Contains some missing values:\n{missing_data}")
 #             else:
 #                 st.sidebar.error(f"❌ {test_ticker}: No data received")
