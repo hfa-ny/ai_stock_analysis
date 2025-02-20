@@ -690,8 +690,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             
             <div class="modern-summary">
         """, unsafe_allow_html=True)
-        # Generate all cards HTML in a single string
-        cards_html = ""
+
         # Add cards for each stock
         for ticker in st.session_state["stock_data"]:
             data = st.session_state["stock_data"][ticker]
@@ -699,7 +698,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             recommendation = next((item["Recommendation"] for item in overall_results if item["Stock"] == ticker), "N/A")
             color = RECOMMENDATION_COLORS.get(recommendation, "rgba(128, 128, 128, 0.7)")
             
-            cards_html += f"""
+            st.markdown(f"""
                 <div class="stock-card">
                     <div class="stock-symbol">{ticker}</div>
                     <div class="stock-prices">
@@ -710,9 +709,9 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                         {recommendation}
                     </div>
                 </div>
-            """
+            """, unsafe_allow_html=True)
 
-        st.markdown(f"{cards_html}</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
         # Add section spacer
         st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
