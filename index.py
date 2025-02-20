@@ -665,22 +665,23 @@ else:
 
 if st.sidebar.button("Test yfinance API"):
     ticker_symbol = "AAPL"
-    period_val = "1mo"
-    interval_val = "1d"
     try:
+        # First try simple download
         test_data = yf.download("AAPL", period="1mo", interval="1d")
-
-        ticker_data = yf.Ticker(ticker_symbol)
-        data = ticker_data.history(period=period_val, interval=interval_val)
-        #return data, ticker_data.info.get("longName", ticker_symbol)
-    except Exception as e:
-        st.error(f"Error fetching data: {e}")
-        #return pd.DataFrame(), ""
-        if not data.empty:
-            st.sidebar.success(f"yfinance API test successful! Fetched {len(data)} rows.")
-            st.write(test_data)
-            
+        
+        if not test_data.empty:
+            st.sidebar.success(f"yfinance API test successful! Fetched {len(test_data)} rows.")
+            with st.expander("View Test Data"):
+                st.dataframe(test_data)
         else:
-            st.sidebar.error("No data fetched for AAPL. Check yfinance API.")
+            st.sidebar.error("No data received from yfinance API.")
+            
+        # Try getting ticker info
+        ticker = yf.Ticker(ticker_symbol)
+        info = ticker.info
+        if info:
+            st.sidebar.success("Successfully retrieved ticker info.")
+        
     except Exception as e:
-        st.sidebar.error(f"yfinance API test failed: {e}")
+        st.sidebar.error(f"yfinance API test failed: {str(e)}")
+        st.sidebar.warning("Try updating yfinance: pip install --upgrade yfinance")
