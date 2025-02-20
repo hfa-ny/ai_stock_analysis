@@ -131,6 +131,19 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+# Add at the top of the file, after imports
+RECOMMENDATION_COLORS = {
+    "Strong Buy": "rgba(0, 128, 0, 0.7)",      # Semi-transparent green
+    "Buy": "rgba(144, 238, 144, 0.7)",         # Semi-transparent lightgreen
+    "Weak Buy": "rgba(152, 251, 152, 0.7)",    # Semi-transparent palegreen
+    "Hold": "rgba(255, 255, 0, 0.7)",          # Semi-transparent yellow
+    "Weak Sell": "rgba(255, 192, 203, 0.7)",   # Semi-transparent pink
+    "Sell": "rgba(240, 128, 128, 0.7)",        # Semi-transparent lightcoral
+    "Strong Sell": "rgba(255, 0, 0, 0.7)",     # Semi-transparent red
+    "Error": "rgba(128, 128, 128, 0.7)",       # Semi-transparent gray
+    "N/A": "rgba(128, 128, 128, 0.7)"          # Semi-transparent gray
+}
+
 st.title("HFA AI-Powered Technical Stock Analysis")
 st.sidebar.header("Configuration")
 
@@ -627,75 +640,58 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
     tab_names = ["Overall Summary"] + list(st.session_state["stock_data"].keys())
     tabs = st.tabs(tab_names)
 
-    # Display Overall Summary tab
+    # In the Overall Summary tab
     with tabs[0]:
-        st.subheader("Overall Structured Recommendations")
-        df_summary = pd.DataFrame(overall_results)
+        st.markdown('<div class="header-section">', unsafe_allow_html=True)
+        st.subheader("Overall Market Analysis")
+        st.markdown("</div>", unsafe_allow_html=True)
         
-        # Create styled HTML table with colored recommendations using the same colors
-        recommendation_colors = {
-            "Strong Buy": "rgba(0, 128, 0, 0.7)",      # Semi-transparent green
-            "Buy": "rgba(144, 238, 144, 0.7)",         # Semi-transparent lightgreen
-            "Weak Buy": "rgba(152, 251, 152, 0.7)",    # Semi-transparent palegreen
-            "Hold": "rgba(255, 255, 0, 0.7)",          # Semi-transparent yellow
-            "Weak Sell": "rgba(255, 192, 203, 0.7)",   # Semi-transparent pink
-            "Sell": "rgba(240, 128, 128, 0.7)",        # Semi-transparent lightcoral
-            "Strong Sell": "rgba(255, 0, 0, 0.7)",     # Semi-transparent red
-            "Error": "rgba(128, 128, 128, 0.7)",       # Semi-transparent gray
-            "N/A": "rgba(128, 128, 128, 0.7)"          # Semi-transparent gray
-        }
+        # First collect all the results with price data
+        enhanced_results = []
+        for ticker in st.session_state["stock_data"]:
+            data = st.session_state["stock_data"][ticker]
+            latest_data = data.iloc[-1]
+            
+            # Find the matching recommendation from overall_results
+            recommendation = next((item["Recommendation"] for item in overall_results if item["Stock"] == ticker), "N/A")
+            
+            enhanced_results.append({
+                "Stock": ticker,
+                "Open": safe_format_price(latest_data['Open']),
+                "Close": safe_format_price(latest_data['Close']),
+                "Recommendation": recommendation
+            })
         
-        # Create HTML table with enhanced styling
-        html_table = '''
-        <style>
-        .summary-table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-            margin: 10px 0;
-            font-size: 0.9em;
-        }
-        .summary-table th, .summary-table td {
-            padding: 12px;
-            text-align: left;
-            border: 1px solid #ddd;
-        }
-        .summary-table th {
-            background-color: #f8f9fa;
-            font-weight: bold;
-        }
-        .recommendation-cell {
-            padding: 5px 10px;
-            border-radius: 4px;
-            color: black;
-            text-align: center;
-            font-weight: 500;
-            border: 1px solid rgba(0,0,0,0.1);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
-        </style>
-        <table class="summary-table">
-        <tr><th>Stock</th><th>Recommendation</th></tr>
-        '''
+        df_summary = pd.DataFrame(enhanced_results)
         
-        # Add rows with enhanced styling
+        # Create the table with enhanced styling
+        st.markdown("""
+            <table class="summary-table">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Latest Prices</th>
+                    <th>AI Analysis</th>
+                </tr>
+            </thead>
+            <tbody>
+        """, unsafe_allow_html=True)
+        
+        # Add rows with enhanced styling and price information
         for _, row in df_summary.iterrows():
-            color = recommendation_colors.get(row['Recommendation'], "rgba(128, 128, 128, 0.7)")
-            html_table += f'''
-            <tr>
-                <td>{row["Stock"]}</td>
-                <td><div class="recommendation-cell" style="background-color:{color}">{row["Recommendation"]}</div></td>
-            </tr>
-            '''
+            color = RECOMMENDATION_COLORS.get(row['Recommendation'], "rgba(128, 128, 128, 0.7)")
+            st.markdown(f"""
+                <tr>
+                    <td><strong>{row["Stock"]}</strong></td>
+                    <td><span class="price-info">Open: {row["Open"]} · Close: {row["Close"]}</span></td>
+                    <td><div class="recommendation-cell" style="background-color:{color}">{row['Recommendation']}</div></td>
+                </tr>
+            """, unsafe_allow_html=True)
         
-        html_table += '</table>'
-        st.markdown(html_table, unsafe_allow_html=True)
-
-        # Display all stocks' data in Overall Summary
-        st.subheader("Raw Data for All Stocks")
-        for stock, stock_data in st.session_state["stock_data"].items():
-            with st.expander(f"Raw Data for {stock} ({selected_time_frame})"):
-                st.dataframe(stock_data)
+        st.markdown("""
+            </tbody>
+            </table>
+        """, unsafe_allow_html=True)
 
     # Display individual stock tabs section
     for i, ticker in enumerate(st.session_state["stock_data"]):
@@ -722,20 +718,9 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                     open_price = safe_format_price(latest_data.get('Open'))
                     close_price = safe_format_price(latest_data.get('Close'))
                     
-                    # Get the recommendation and its color with improved styling
+                    # Get the recommendation and use the global color mapping
                     recommendation = result.get("action", "N/A")
-                    recommendation_colors = {
-                        "Strong Buy": "rgba(0, 128, 0, 0.7)",  # Semi-transparent green
-                        "Buy": "rgba(144, 238, 144, 0.7)",     # Semi-transparent lightgreen
-                        "Weak Buy": "rgba(152, 251, 152, 0.7)", # Semi-transparent palegreen
-                        "Hold": "rgba(255, 255, 0, 0.7)",      # Semi-transparent yellow
-                        "Weak Sell": "rgba(255, 192, 203, 0.7)", # Semi-transparent pink
-                        "Sell": "rgba(240, 128, 128, 0.7)",    # Semi-transparent lightcoral
-                        "Strong Sell": "rgba(255, 0, 0, 0.7)", # Semi-transparent red
-                        "Error": "rgba(128, 128, 128, 0.7)",   # Semi-transparent gray
-                        "N/A": "rgba(128, 128, 128, 0.7)"      # Semi-transparent gray
-                    }
-                    rec_color = recommendation_colors.get(recommendation, "rgba(128, 128, 128, 0.7)")
+                    rec_color = RECOMMENDATION_COLORS.get(recommendation, "rgba(128, 128, 128, 0.7)")
                     
                     st.markdown(f"""
                         <h3 style='margin-bottom: 0px;'>
