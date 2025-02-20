@@ -10,6 +10,10 @@ import tempfile  # tempfile for creating temporary files (used to save chart ima
 import os  # os for interacting with the operating system (e.g., deleting temporary files)
 import json  # json for working with JSON data (expected response format from Gemini)
 from datetime import datetime, timedelta  # datetime and timedelta for date and time calculations
+import time
+from concurrent.futures import ThreadPoolExecutor
+import pandas_market_calendars as mcal
+import requests.exceptions
 
 # Configure the API key - Use Streamlit secrets or environment variables for security
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
@@ -111,9 +115,38 @@ indicators = st.sidebar.multiselect(
     default=["20-Day SMA"]
 )
 
+def fetch_with_retry(ticker, start_date, end_date, interval, max_retries=3, delay=2):
+    """Fetch stock data with retry logic"""
+    for attempt in range(max_retries):
+        try:
+            # Force session reset on retry
+            yf.Ticker(ticker).history = None
+            
+            data = yf.download(
+                ticker,
+                start=start_date,
+                end=end_date,
+                interval=interval,
+                prepost=False,
+                progress=False,
+                timeout=20
+            )
+            
+            if not data.empty:
+                return data
+            
+        except (requests.exceptions.RequestException, ValueError, json.JSONDecodeError) as e:
+            if attempt == max_retries - 1:
+                raise Exception(f"Failed to fetch data after {max_retries} attempts: {str(e)}")
+            time.sleep(delay * (attempt + 1))  # Exponential backoff
+    
+    return pd.DataFrame()  # Return empty DataFrame if all retries failed
+
 # Modify the data fetching part
 if st.sidebar.button("Fetch Data"):
     stock_data = {}
+    failed_tickers = []
+    
     for ticker in tickers:
         try:
             # Calculate appropriate start date based on selected timeframe
@@ -122,39 +155,33 @@ if st.sidebar.button("Fetch Data"):
 
             # Adjust start date based on timeframe
             adjusted_start_date = datetime.today() - timedelta(days=max_days)
-            if start_date > adjusted_start_date.date(): # Corrected line: compare dates
-                adjusted_start_date = start_date
+            if start_date > adjusted_start_date.date():
+                adjusted_start_date = datetime.combine(start_date, datetime.min.time())
 
-            # Debug information - Removed for cleaner UI, keep for debugging if needed
-            # st.write(f"Fetching {ticker} data:")
-            # st.write(f"Interval: {interval}")
-            # st.write(f"Start Date: {adjusted_start_date.strftime('%Y-%m-%d %H:%M:%S')}")
-            # st.write(f"End Date: {end_date.strftime('%Y-%m-%d %H:%M:%S')}")
-
-            # Download data with proper parameters
-            data = yf.download(
+            # Use the retry function
+            data = fetch_with_retry(
                 ticker,
-                start=adjusted_start_date,
-                end=end_date,
-                interval=interval,
-                prepost=False  # Changed to False to exclude pre/post market hours
+                start_date=adjusted_start_date,
+                end_date=end_date,
+                interval=interval
             )
 
-            if data is not None and not data.empty:
+            if not data.empty:
                 stock_data[ticker] = data
-               # st.success(f"Successfully fetched {len(data)} rows for {ticker} ({interval} interval)")
-                # **DEBUG PRINTING - Check data shape - Removed for cleaner UI, keep for debugging if needed
-                # st.write(f"  Data shape: {data.shape}")
+                st.success(f"Successfully fetched {len(data)} rows for {ticker}")
             else:
-                st.warning(f"No data found for {ticker} with {interval} interval.  Data might be limited for this timeframe or date range.")
+                failed_tickers.append(ticker)
+                st.warning(f"No data found for {ticker}. The symbol might be incorrect or delisted.")
 
         except Exception as e:
+            failed_tickers.append(ticker)
             st.error(f"Error fetching {ticker}: {str(e)}")
-            st.error(f"Error details: {e}")
 
     if stock_data:
         st.session_state["stock_data"] = stock_data
-        st.success("Stock data loaded successfully for: " + ", ".join(stock_data.keys()))
+        st.success(f"Stock data loaded successfully for {len(stock_data)} ticker(s)")
+        if failed_tickers:
+            st.warning(f"Failed to fetch data for: {', '.join(failed_tickers)}")
     else:
         st.error("No data was loaded for any ticker")
 
@@ -664,24 +691,23 @@ else:
 # docker run -p 8501:8501 -e GOOGLE_API_KEY="your_actual_api_key" streamlit-stock-analysis
 
 if st.sidebar.button("Test yfinance API"):
-    ticker_symbol = "AAPL"
+    ticker_symbol = "AAPL"  # Test with a reliable ticker
     try:
-        # First try simple download
-        test_data = yf.download("AAPL", period="1mo", interval="1d")
+        # Test with retry logic
+        test_data = fetch_with_retry(
+            ticker_symbol,
+            start_date=datetime.today() - timedelta(days=30),
+            end_date=datetime.today(),
+            interval="1d"
+        )
         
         if not test_data.empty:
-            st.sidebar.success(f"yfinance API test successful! Fetched {len(test_data)} rows.")
+            st.sidebar.success(f"yfinance API test successful! Fetched {len(test_data)} rows")
             with st.expander("View Test Data"):
                 st.dataframe(test_data)
         else:
-            st.sidebar.error("No data received from yfinance API.")
+            st.sidebar.error("No data received from yfinance API")
             
-        # Try getting ticker info
-        ticker = yf.Ticker(ticker_symbol)
-        info = ticker.info
-        if info:
-            st.sidebar.success("Successfully retrieved ticker info.")
-        
     except Exception as e:
         st.sidebar.error(f"yfinance API test failed: {str(e)}")
-        st.sidebar.warning("Try updating yfinance: pip install --upgrade yfinance")
+        st.sidebar.warning("Try clearing your browser cache or using a different ticker symbol")
