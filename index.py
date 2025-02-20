@@ -680,10 +680,13 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
         data = st.session_state["stock_data"][ticker]
         log_debug(f"Pre-analysis data for {ticker}", data)
         
+        # Create a copy of the data to avoid modifying the original
+        data = data.copy()
+        
         # Convert data to numeric if needed
         for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
             if col in data.columns:
-                data[col] = pd.to_numeric(data[col], errors='coerce')
+                data[col] = pd.to_numeric(data[col].astype(str), errors='coerce')
         
         # Verify data after conversion
         log_debug(f"Post-conversion data for {ticker}", data)
