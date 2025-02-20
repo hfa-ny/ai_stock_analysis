@@ -129,7 +129,8 @@ def fetch_with_retry(ticker, start_date, end_date, interval, max_retries=3, dela
                 interval=interval,
                 prepost=False,
                 progress=False,
-                timeout=20
+                timeout=20,
+                auto_adjust=False  # Explicitly set auto_adjust to False
             )
             
             if not data.empty:
@@ -597,12 +598,15 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             col1, col2 = st.columns([3, 2])
             with col1:
                 latest_data = current_data.iloc[-1]  # Use current stock's data
-                # Use markdown instead of subheader for HTML formatting
+                # Format the numeric values explicitly
+                open_price = f"${latest_data['Open']:.2f}" if isinstance(latest_data['Open'], (int, float)) else "N/A"
+                close_price = f"${latest_data['Close']:.2f}" if isinstance(latest_data['Close'], (int, float)) else "N/A"
+                
                 st.markdown(f"""
                     <h3 style='margin-bottom: 0px;'>
                         Analysis for {ticker}
                         <span style='font-size: 0.8em; font-weight: normal; color: #666;'>
-                            (Open: ${latest_data['Open']:.2f} Close: ${latest_data['Close']:.2f})
+                            (Open: {open_price} Close: {close_price})
                         </span>
                     </h3>
                 """, unsafe_allow_html=True)
