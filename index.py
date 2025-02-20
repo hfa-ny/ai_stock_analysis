@@ -646,30 +646,30 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
         
         st.markdown("""
             <style>
-            .market-container {
+            .market-summary {
                 background: white;
                 border-radius: 8px;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 margin: 1.5rem 0;
-                overflow: hidden;
-                padding: 0.5rem;
+                padding: 1rem;
             }
             .market-table {
                 width: 100%;
                 border-collapse: collapse;
-                border-spacing: 0;
+                margin-bottom: 1rem;
+            }
+            .market-table th, .market-table td {
+                padding: 12px 16px;
+                text-align: left;
+                border-bottom: 1px solid #e5e7eb;
             }
             .market-table th {
                 background: #f8f9fa;
-                padding: 16px 20px;
-                text-align: left;
                 font-weight: 600;
                 color: #374151;
-                border-bottom: 2px solid #e5e7eb;
+                white-space: nowrap;
             }
             .market-table td {
-                padding: 16px 20px;
-                border-bottom: 1px solid #e5e7eb;
                 vertical-align: middle;
             }
             .market-table tr:last-child td {
@@ -677,11 +677,9 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             }
             .market-table tr:hover {
                 background: #f9fafb;
-                transition: background-color 0.2s ease;
             }
             .market-symbol {
                 font-weight: 600;
-                font-size: 1.1em;
                 color: #111827;
             }
             .market-price {
@@ -689,22 +687,29 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             }
             .market-rec {
                 display: inline-block;
-                padding: 6px 16px;
+                padding: 6px 12px;
                 border-radius: 6px;
                 font-weight: 500;
-                min-width: 110px;
                 text-align: center;
+                min-width: 100px;
                 border: 1px solid rgba(0,0,0,0.1);
-                box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-                transition: all 0.2s ease;
             }
-            .market-rec:hover {
-                transform: translateY(-1px);
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            .section-spacer {
+                margin: 2.5rem 0;
+                border-top: 1px solid #e5e7eb;
+            }
+            .historical-header {
+                margin: 2rem 0 1rem 0;
+                color: #111827;
+            }
+            .historical-desc {
+                color: #6b7280;
+                font-size: 0.9em;
+                margin-bottom: 1.5rem;
             }
             </style>
             
-            <div class="market-container">
+            <div class="market-summary">
                 <table class="market-table">
                     <thead>
                         <tr>
@@ -730,32 +735,17 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 </tr>
             """, unsafe_allow_html=True)
         
-        st.markdown("</tbody></table></div>", unsafe_allow_html=True)
-
-        # Add spacing and section header after the market overview table
         st.markdown("""
-            <style>
-            .section-spacer {
-                margin: 2.5rem 0;
-                border-top: 1px solid #e5e7eb;
-            }
-            .historical-header {
-                margin: 2rem 0 1rem 0;
-                color: #111827;
-            }
-            .historical-desc {
-                color: #6b7280;
-                font-size: 0.9em;
-                margin-bottom: 1.5rem;
-            }
-            </style>
-            
-            <div class="section-spacer"></div>
-            <h2 class="historical-header">Historical Price Data</h2>
-            <p class="historical-desc">
-                Expand each symbol below to view detailed historical data and performance metrics.
-                Data includes full price history and calculated statistics for the selected time period.
-            </p>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="section-spacer"></div>
+        <h2 class="historical-header">Historical Price Data</h2>
+        <p class="historical-desc">
+            Expand each symbol below to view detailed historical data and performance metrics.
+            Data includes full price history and calculated statistics for the selected time period.
+        </p>
         """, unsafe_allow_html=True)
 
     # Display individual stock tabs section
