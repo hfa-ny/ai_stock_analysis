@@ -652,27 +652,24 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
                 margin: 1.5rem 0;
                 padding: 1rem;
-                overflow-x: auto;
             }
             .market-table {
                 width: 100%;
                 border-collapse: collapse;
-                margin: 0;
-                border: 1px solid #e5e7eb;
+                margin-bottom: 1rem;
+            }
+            .market-table th, .market-table td {
+                padding: 12px 16px;
+                text-align: left;
+                border-bottom: 1px solid #e5e7eb;
             }
             .market-table th {
                 background: #f8f9fa;
                 font-weight: 600;
                 color: #374151;
-                padding: 12px 16px;
-                text-align: left;
-                border-bottom: 2px solid #e5e7eb;
                 white-space: nowrap;
             }
             .market-table td {
-                padding: 12px 16px;
-                text-align: left;
-                border-bottom: 1px solid #e5e7eb;
                 vertical-align: middle;
             }
             .market-table tr:last-child td {
@@ -684,11 +681,9 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             .market-symbol {
                 font-weight: 600;
                 color: #111827;
-                white-space: nowrap;
             }
             .market-price {
                 color: #4b5563;
-                white-space: nowrap;
             }
             .market-rec {
                 display: inline-block;
@@ -698,10 +693,19 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 text-align: center;
                 min-width: 100px;
                 border: 1px solid rgba(0,0,0,0.1);
-                white-space: nowrap;
             }
-            .market-rec-cell {
-                text-align: center !important;
+            .section-spacer {
+                margin: 2.5rem 0;
+                border-top: 1px solid #e5e7eb;
+            }
+            .historical-header {
+                margin: 2rem 0 1rem 0;
+                color: #111827;
+            }
+            .historical-desc {
+                color: #6b7280;
+                font-size: 0.9em;
+                margin-bottom: 1.5rem;
             }
             </style>
             
@@ -709,13 +713,13 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 <table class="market-table">
                     <thead>
                         <tr>
-                            <th>Symbol</th>
-                            <th>Latest Prices</th>
-                            <th style="text-align: center;">AI Recommendation</th>
+                            <th style="width: 20%;">Symbol</th>
+                            <th style="width: 45%;">Latest Prices</th>
+                            <th style="width: 35%; text-align: center;">AI Recommendation</th>
                         </tr>
                     </thead>
                     <tbody>
-            """, unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
         
         for ticker in st.session_state["stock_data"]:
             data = st.session_state["stock_data"][ticker]
@@ -727,24 +731,21 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 <tr>
                     <td><span class="market-symbol">{ticker}</span></td>
                     <td class="market-price">Open: {safe_format_price(latest_data['Open'])} · Close: {safe_format_price(latest_data['Close'])}</td>
-                    <td class="market-rec-cell"><span class="market-rec" style="background-color: {color}">{recommendation}</span></td>
+                    <td style="text-align: center;"><span class="market-rec" style="background-color: {color}">{recommendation}</span></td>
                 </tr>
             """, unsafe_allow_html=True)
         
         st.markdown("""
-                    </tbody>
-                </table>
-            </div>
-        """, unsafe_allow_html=True)
-
-        # Continue with Historical Price Data section
-        st.markdown("""
-            <div class="section-spacer"></div>
-            <h2 class="historical-header">Historical Price Data</h2>
-            <p class="historical-desc">
-                Expand each symbol below to view detailed historical data and performance metrics.
-                Data includes full price history and calculated statistics for the selected time period.
-            </p>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="section-spacer"></div>
+        <h2 class="historical-header">Historical Price Data</h2>
+        <p class="historical-desc">
+            Expand each symbol below to view detailed historical data and performance metrics.
+            Data includes full price history and calculated statistics for the selected time period.
+        </p>
         """, unsafe_allow_html=True)
 
         # Add Historical Price Data Section
@@ -780,7 +781,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 st.dataframe(formatted_data, use_container_width=True)
 
     # Display individual stock tabs section
-    for i, ticker in st.session_state["stock_data"]:
+    for i, ticker in enumerate(st.session_state["stock_data"]):
         with tabs[i + 1]:
             # Get the data and ensure it's properly converted
             data = st.session_state["stock_data"][ticker].copy()
