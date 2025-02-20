@@ -891,9 +891,5 @@ st.markdown("""
     <div class="market-overview">
 """, unsafe_allow_html=True)
 
-# Add cards for each stock (keep this part the same)
-for ticker in st.session_state["stock_data"]:
-    # ... existing card content code ...
 
-st.markdown("</div>", unsafe_allow_html=True)
 
