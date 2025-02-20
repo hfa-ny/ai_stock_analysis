@@ -712,7 +712,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 </div>
             """
 
-        st.markdown("</div>", unsafe_allow_html=True)
+         st.markdown(f"{cards_html}</div>", unsafe_allow_html=True)
 
         # Add section spacer
         st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
