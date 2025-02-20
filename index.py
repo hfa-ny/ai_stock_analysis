@@ -217,54 +217,64 @@ def fetch_yahoo_finance_data(ticker, start_date, end_date):
         st.sidebar.error(f"Backup data fetch failed: {str(e)}")
         return pd.DataFrame()
 
+# Update the fetch_with_retry function
 def fetch_with_retry(ticker, start_date, end_date, interval, max_retries=3, delay=2):
     """Fetch stock data with retry logic"""
     for attempt in range(max_retries):
         try:
-            # Simple, direct approach using just the period parameter
-            data = yf.download(
-                ticker,
-                period="1y",  # Use fixed period first
+            # Try getting data using Ticker object first
+            stock = yf.Ticker(ticker)
+            data = stock.history(
+                start=start_date,
+                end=end_date,
                 interval=interval,
-                progress=False,
-                show_errors=False
+                prepost=False,
+                actions=False,
+                repair=True
             )
             
             if not data.empty:
-                # Filter to the requested date range after successful fetch
-                if isinstance(start_date, datetime):
-                    start_ts = start_date
-                else:
-                    start_ts = pd.Timestamp(start_date)
-                
-                if isinstance(end_date, datetime):
-                    end_ts = end_date
-                else:
-                    end_ts = pd.Timestamp(end_date)
-                
-                mask = (data.index >= start_ts) & (data.index <= end_ts)
-                data = data[mask]
-                
-                if not data.empty:
+                # Verify data structure
+                required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+                if all(col in data.columns for col in required_columns):
                     return data
             
-            # If no data received, try the backup method
+            # If first method fails, try download
+            data = yf.download(
+                ticker,
+                start=start_date,
+                end=end_date,
+                interval=interval,
+                prepost=False,
+                progress=False,
+                repair=True,
+                ignore_tz=True
+            )
+            
+            if not data.empty:
+                return data
+                
+            # If both methods fail, try the backup method
             backup_data = fetch_yahoo_finance_data(ticker, start_date, end_date)
             if not backup_data.empty:
                 return backup_data
             
-            time.sleep(delay * (attempt + 1))
+            if attempt < max_retries - 1:
+                st.sidebar.warning(f"Attempt {attempt + 1} failed for {ticker}, retrying...")
+                time.sleep(delay * (attempt + 1))
             
         except Exception as e:
             if attempt == max_retries - 1:
-                # Final attempt - try the most basic fetch possible
+                st.sidebar.error(f"Failed to fetch {ticker} after all attempts: {str(e)}")
+                # Try one last time with minimal parameters
                 try:
                     data = yf.download(ticker, period="1mo", progress=False)
                     if not data.empty:
                         return data
                 except:
                     pass
-                raise Exception(f"All fetch attempts failed for {ticker}: {str(e)}")
+                raise Exception(f"All fetch attempts failed for {ticker}")
+            st.sidebar.warning(f"Attempt {attempt + 1} failed: {str(e)}, retrying...")
             time.sleep(delay * (attempt + 1))
     
     return pd.DataFrame()
