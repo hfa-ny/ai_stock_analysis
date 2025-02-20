@@ -150,8 +150,8 @@ time_frame_options = {
     "5min": {"interval": "5m", "days": 30, "max_points": None},  
     "15min": {"interval": "15m", "days": 60, "max_points": None},
     "30min": {"interval": "30m", "days": 60, "max_points": None},
-    "1hour": {"interval": "1h", "days": 730, "max_points": None},
-    "90min": {"interval": "90m", "days": 60, "max_points": None},
+    "1hour": {"interval": "1h", "days": 230, "max_points": None},
+    "90min": {"interval": "90m", "days": 100, "max_points": None},
     "2hour": {"interval": "2h", "days": 120, "max_points": None},
     "4hour": {"interval": "4h", "days": 180, "max_points": None},
 }
