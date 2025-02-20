@@ -382,7 +382,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
         """Get key financial metrics for a stock"""
         try:
             # Skip detailed metrics for index symbols
-            if ticker_symbol.startswith('^'):
+            if (ticker_symbol.startswith('^')):
                 return {
                     "Type": "Market Index",
                     "Note": "Detailed metrics not available for indices"
@@ -640,58 +640,162 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
     tab_names = ["Overall Summary"] + list(st.session_state["stock_data"].keys())
     tabs = st.tabs(tab_names)
 
-    # In the Overall Summary tab
+    # Display Overall Summary tab
     with tabs[0]:
-        st.markdown('<div class="header-section">', unsafe_allow_html=True)
-        st.subheader("Overall Market Analysis")
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("""
+            <style>
+            .modern-table {
+                width: 100%;
+                border-collapse: collapse;
+                background-color: white;
+                margin: 1rem 0;
+            }
+            .modern-table th {
+                background-color: #f8f9fa;
+                padding: 12px 16px;
+                text-align: left;
+                font-weight: 600;
+                border-bottom: 2px solid #e5e7eb;
+            }
+            .modern-table td {
+                padding: 12px 16px;
+                border-bottom: 1px solid #e5e7eb;
+            }
+            .modern-table tr:hover {
+                background-color: #f9fafb;
+            }
+            .price-info {
+                color: #4b5563;
+            }
+            .recommendation-badge {
+                display: inline-block;
+                padding: 4px 12px;
+                border-radius: 4px;
+                font-weight: 500;
+                min-width: 100px;
+                text-align: center;
+            }
+            </style>
+        """, unsafe_allow_html=True)
         
-        # First collect all the results with price data
-        enhanced_results = []
+        st.markdown("## Market Overview", True)
+        
+        # Display the modern table
+        table_html = """
+            <table class="modern-table">
+                <thead>
+                    <tr>
+                        <th>Symbol</th>
+                        <th>Latest Prices</th>
+                        <th>AI Analysis</th>
+                    </tr>
+                </thead>
+                <tbody>
+        """
+        
         for ticker in st.session_state["stock_data"]:
             data = st.session_state["stock_data"][ticker]
             latest_data = data.iloc[-1]
-            
-            # Find the matching recommendation from overall_results
             recommendation = next((item["Recommendation"] for item in overall_results if item["Stock"] == ticker), "N/A")
+            color = RECOMMENDATION_COLORS.get(recommendation, "rgba(128, 128, 128, 0.7)")
             
-            enhanced_results.append({
-                "Stock": ticker,
-                "Open": safe_format_price(latest_data['Open']),
-                "Close": safe_format_price(latest_data['Close']),
-                "Recommendation": recommendation
-            })
-        
-        df_summary = pd.DataFrame(enhanced_results)
-        
-        # Create the table with enhanced styling
-        st.markdown("""
-            <table class="summary-table">
-            <thead>
+            table_html += f"""
                 <tr>
-                    <th>Symbol</th>
-                    <th>Latest Prices</th>
-                    <th>AI Analysis</th>
+                    <td><strong>{ticker}</strong></td>
+                    <td class="price-info">Open: {safe_format_price(latest_data['Open'])} · Close: {safe_format_price(latest_data['Close'])}</td>
+                    <td><span class="recommendation-badge" style="background-color: {color}">{recommendation}</span></td>
                 </tr>
-            </thead>
-            <tbody>
-        """, unsafe_allow_html=True)
+            """
         
-        # Add rows with enhanced styling and price information
-        for _, row in df_summary.iterrows():
-            color = RECOMMENDATION_COLORS.get(row['Recommendation'], "rgba(128, 128, 128, 0.7)")
-            st.markdown(f"""
-                <tr>
-                    <td><strong>{row["Stock"]}</strong></td>
-                    <td><span class="price-info">Open: {row["Open"]} · Close: {row["Close"]}</span></td>
-                    <td><div class="recommendation-cell" style="background-color:{color}">{row['Recommendation']}</div></td>
-                </tr>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("""
-            </tbody>
+        table_html += """
+                </tbody>
             </table>
+        """
+        st.markdown(table_html, unsafe_allow_html=True)
+
+        # Add spacing after the table
+        st.markdown("<div style='height: 2rem;'></div>", unsafe_allow_html=True)
+        
+        # Historical data section with improved header
+        st.markdown("""
+            <div style='border-top: 1px solid #e5e7eb; padding-top: 2rem; margin-top: 1rem;'>
+                <h2>Historical Price Data</h2>
+                <p style='color: #666; font-size: 0.9em; margin: 0.5rem 0 1.5rem 0;'>
+                    Expand each symbol below to view detailed historical data and quick statistics.
+                </p>
+            </div>
         """, unsafe_allow_html=True)
+
+        for ticker in st.session_state["stock_data"]:
+            data = st.session_state["stock_data"][ticker].copy()
+            
+            # Sort data by date in descending order
+            data = data.sort_index(ascending=False)
+            
+            with st.expander(f"📊 {ticker} Historical Data - {len(data)} rows ({selected_time_frame})", expanded=False):
+                # Format the dataframe with enhanced styling
+                styled_df = data.style.format({
+                    'Open': '${:,.2f}',
+                    'High': '${:,.2f}',
+                    'Low': '${:,.2f}',
+                    'Close': '${:,.2f}',
+                    'Volume': '{:,.0f}'
+                }).set_properties(**{
+                    'background-color': '#ffffff',
+                    'color': '#333333',
+                    'border': '1px solid #e5e7eb',
+                    'padding': '8px'
+                }).set_table_styles([
+                    {'selector': 'th', 'props': [
+                        ('background-color', '#f8f9fa'),
+                        ('color', '#1f2937'),
+                        ('font-weight', 'bold'),
+                        ('border', '1px solid #e5e7eb'),
+                        ('padding', '8px')
+                    ]},
+                    {'selector': 'tr:hover', 'props': [
+                        ('background-color', '#f9fafb')
+                    ]}
+                ])
+
+                st.dataframe(
+                    styled_df,
+                    use_container_width=True,
+                    height=400
+                )
+
+                # Add summary statistics below the table
+                cols = st.columns(4)
+                
+                # Calculate statistics
+                latest = data.iloc[0]
+                oldest = data.iloc[-1]
+                price_change = ((latest['Close'] - oldest['Close']) / oldest['Close']) * 100
+                avg_volume = data['Volume'].mean()
+                
+                with cols[0]:
+                    st.metric(
+                        "Trading Days",
+                        f"{len(data):,}"
+                    )
+                with cols[1]:
+                    st.metric(
+                        "Price Change",
+                        f"{abs(price_change):,.2f}%",
+                        delta=f"{price_change:,.2f}%",
+                        delta_color="normal" if price_change >= 0 else "inverse"
+                    )
+                with cols[2]:
+                    st.metric(
+                        "Trading Range",
+                        f"${data['High'].max():,.2f}",
+                        f"Low: ${data['Low'].min():,.2f}"
+                    )
+                with cols[3]:
+                    st.metric(
+                        "Avg Volume",
+                        f"{avg_volume:,.0f}"
+                    )
 
     # Display individual stock tabs section
     for i, ticker in enumerate(st.session_state["stock_data"]):
