@@ -35,6 +35,35 @@ def log_debug(title, data):
     else:
         st.sidebar.write(data)
 
+# Add this function after the imports
+def test_yfinance_connection():
+    """Basic test of yfinance functionality"""
+    try:
+        # Test with a simple, direct yfinance call
+        ticker = yf.Ticker("AAPL")
+        end = datetime.now()
+        start = end - timedelta(days=5)
+        
+        # Try to get just daily data for 5 days
+        hist = ticker.history(
+            start=start,
+            end=end,
+            interval='1d',
+            auto_adjust=False,
+            repair=True
+        )
+        
+        if hist.empty:
+            return False, "No data returned from yfinance"
+        
+        required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
+        if not all(col in hist.columns for col in required_cols):
+            return False, f"Missing columns. Found: {list(hist.columns)}"
+            
+        return True, hist
+    except Exception as e:
+        return False, f"Error: {str(e)}"
+
 # Configure the API key - Use Streamlit secrets or environment variables for security
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
@@ -837,3 +866,12 @@ if st.sidebar.button("Test yfinance API"):
             st.sidebar.error(f"❌ {test_ticker}: API test failed: {str(e)}")
     
     st.sidebar.info("💡 If tests fail, try another ticker or wait a few minutes before retrying.")
+
+# Add test button in sidebar
+if st.sidebar.button("Basic API Test"):
+    success, result = test_yfinance_connection()
+    if success:
+        st.sidebar.success("✅ Basic API test successful!")
+        st.sidebar.dataframe(result.head())
+    else:
+        st.sidebar.error(f"❌ API test failed: {result}")
