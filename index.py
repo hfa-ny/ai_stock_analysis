@@ -152,8 +152,8 @@ time_frame_options = {
     "30min": {"interval": "30m", "days": 60, "max_points": None},
     "1hour": {"interval": "1h", "days": 730, "max_points": None},
     "90min": {"interval": "90m", "days": 60, "max_points": None},
-    "2hour": {"interval": "2h", "days": 60, "max_points": None},
-    "4hour": {"interval": "4h", "days": 60, "max_points": None},
+    "2hour": {"interval": "2h", "days": 120, "max_points": None},
+    "4hour": {"interval": "4h", "days": 180, "max_points": None},
 }
 
 def show_timeframe_warning(selected_timeframe):
