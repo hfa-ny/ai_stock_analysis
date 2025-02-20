@@ -861,21 +861,20 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
 else:
     st.info("Please fetch stock data using the sidebar.")
 
-# Inside the first with tabs[0]: block, update the style
+# Inside the first with tabs[0]: block
 st.markdown("""
     <style>
     .market-overview {
         display: flex;
-        flex-flow: row wrap;  /* Changed to wrap to allow responsive layout */
-        gap: 1.5rem;
+        flex-flow: row nowrap;  /* Changed to nowrap to keep cards in one row */
+        gap: 1rem;
         padding: 1rem 0;
         margin-bottom: 2rem;
         width: 100%;
+        overflow-x: auto;  /* Allow horizontal scrolling if needed */
     }
     .stock-card {
-        flex: 1 1 300px;  /* Allow cards to grow and shrink */
-        min-width: 300px;  /* Minimum width before wrapping */
-        max-width: calc(33.33% - 1rem);  /* Maximum width */
+        flex: 0 0 300px;  /* Fixed width, no growing or shrinking */
         background: white;
         border-radius: 12px;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
@@ -889,5 +888,12 @@ st.markdown("""
         box-shadow: 0 5px 15px rgba(0,0,0,0.1);
     }
     </style>
+    <div class="market-overview">
 """, unsafe_allow_html=True)
+
+# Add cards for each stock (keep this part the same)
+for ticker in st.session_state["stock_data"]:
+    # ... existing card content code ...
+
+st.markdown("</div>", unsafe_allow_html=True)
 
