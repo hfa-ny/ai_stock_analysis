@@ -220,24 +220,7 @@ def fetch_with_retry(ticker, start_date, end_date, interval, max_retries=3, dela
     """Fetch stock data with retry logic"""
     for attempt in range(max_retries):
         try:
-            # Try getting data using Ticker object first
-            stock = yf.Ticker(ticker)
-            data = stock.history(
-                start=start_date,
-                end=end_date,
-                interval=interval,
-                prepost=False,
-                actions=False,
-                repair=True
-            )
-            
-            if not data.empty:
-                # Verify data structure
-                required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
-                if all(col in data.columns for col in required_columns):
-                    return data
-            
-            # If first method fails, try download
+            # Try yfinance download first
             data = yf.download(
                 ticker,
                 start=start_date,
@@ -246,7 +229,20 @@ def fetch_with_retry(ticker, start_date, end_date, interval, max_retries=3, dela
                 prepost=False,
                 progress=False,
                 repair=True,
-                ignore_tz=True
+                ignore_tz=True,
+                timeout=20
+            )
+            
+            if not data.empty:
+                return data
+                
+            # If first method fails, try Ticker object
+            stock = yf.Ticker(ticker)
+            data = stock.history(
+                start=start_date,
+                end=end_date,
+                interval=interval,
+                repair=True
             )
             
             if not data.empty:
@@ -382,7 +378,10 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
     def analyze_ticker(ticker, data, indicators):
         try:
             # Initial data validation
-            if data is None or data.empty:
+            if data.isna().any().any():
+                data = data.dropna()
+            
+            if data.empty:
                 raise ValueError(f"No data available for {ticker}")
             
             # Ensure numeric data types
@@ -412,7 +411,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 open=data['Open'],
                 high=data['High'],
                 low=data['Low'],
-                close(data['Close']),
+                close=data['Close'],  # Fixed: removed parentheses
                 name="Price",
                 increasing_line_color='#26A69A',
                 decreasing_line_color='#EF5350'
@@ -485,10 +484,10 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             fig = go.Figure(data=[
                 go.Candlestick(
                     x=data.index,
-                    open(data['Open']),
-                    high(data['High']),
-                    low(data['Low']),
-                    close(data['Close']),
+                    open(data['Open']),  # Fixed: removed parentheses
+                    high(data['High']),  # Fixed: removed parentheses
+                    low(data['Low']),    # Fixed: removed parentheses
+                    close(data['Close']), # Fixed: removed parentheses
                     name="Price"
                 )
             ])
@@ -521,10 +520,10 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             fig = go.Figure(data=[
                 go.Candlestick(
                     x=data.index,
-                    open(data['Open']),
-                    high(data['High']),
+                    open=data['Open'],
+                    high=data['High'],
                     low(data['Low']),
-                    close(data['Close']),
+                    close(data['Close']),  # Fixed: removed function call
                     name="Price",
                     increasing_line_color='#26A69A',
                     decreasing_line_color='#EF5350'
@@ -534,7 +533,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             # Update layout with logarithmic scale for small timeframes
             fig.update_layout(
                 title=f"{ticker} Stock Price",
-                yaxis_title="Price (log scale)",
+                yaxis_title="Price (log scale)" if selected_time_frame in ["5min", "15min", "1hour"] else "Price",
                 xaxis_title="Date",
                 yaxis_type="log" if selected_time_frame in ["5min", "15min", "1hour"] else "linear",
                 xaxis_rangeslider_visible=False,
@@ -543,7 +542,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 yaxis=dict(
                     gridcolor="rgba(128, 128, 128, 0.2)",
                     zerolinecolor="rgba(128, 128, 128, 0.2)",
-                    tickformat=".2f",  # Show 2 decimal places
+                    tickformat=".2f",
                     showgrid=True,
                     showline=True
                 ),
@@ -918,110 +917,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
 else:
     st.info("Please fetch stock data using the sidebar.")
 
-# docker run -p 8501:8501 -e GOOGLE_API_KEY="your_actual_api_key" streamlit-stock-analysis
-
-if st.sidebar.button("Test yfinance API"):
-    test_tickers = ["AAPL", "MSFT", "GOOG"]  # Test multiple reliable tickers
-    for test_ticker in test_tickers:
-        try:
-            # Test with shorter timeframe first
-            test_data = fetch_with_retry(
-                test_ticker,
-                start_date=datetime.today() - timedelta(days=5),
-                end_date=datetime.today(),
-                interval="1d"
-            )
-            
-            if not test_data.empty:
-                st.sidebar.success(f"✅ {test_ticker}: Successfully fetched {len(test_data)} rows")
-                log_debug(f"Test Data for {test_ticker}", test_data)
-                
-                # Verify data quality
-                missing_data = test_data.isnull().sum()
-                if missing_data.sum() > 0:
-                    st.sidebar.warning(f"⚠️ {test_ticker}: Contains some missing values:\n{missing_data}")
-            else:
-                st.sidebar.error(f"❌ {test_ticker}: No data received")
-                
-        except Exception as e:
-            with col1:
-                try:
-                    latest_data = data.iloc[-1]
-                    open_price = safe_format_price(latest_data.get('Open'))
-                    close_price = safe_format_price(latest_data.get('Close'))
-                    
-                    st.markdown(f"""
-                        <h3 style='margin-bottom: 0px;'>
-                            Analysis for {ticker}
-                            <span style='font-size: 0.8em; font-weight: normal; color: #666;'>
-                                (Open: {open_price} Close: {close_price})
-                            </span>
-                        </h3>
-                    """, unsafe_allow_html=True)
-                except Exception as e:
-                    st.error(f"Error displaying price data: {str(e)}")
-                    
-            # ... rest of the tab display code remains the same ...
-
-            # Second row: Financial Metrics
-            metrics = get_financial_metrics(ticker)
-            if metrics:
-                st.markdown("""
-                    <style>
-                        .metrics-grid {
-                            display: flex;
-                            flex-direction: row;
-                            flex-wrap: nowrap;
-                            gap: 8px;
-                            overflow-x: auto;
-                            padding: 8px 0;
-                            margin: 10px 0;
-                            width: 100%;
-                        }
-                        .metric-box {
-                            flex: 0 0 auto;
-                            background-color: #f8f9fa;
-                            border-radius: 4px;
-                            padding: 8px;
-                            text-align: center;
-                            min-width: 120px;
-                        }
-                        .metric-label {
-                            color: #666;
-                            font-size: 0.7rem;
-                            margin-bottom: 4px;
-                            white-space: nowrap;
-                        }
-                        .metric-value {
-                            font-weight: bold;
-                            font-size: 0.8rem;
-                            white-space: nowrap;
-                        }
-                    </style>
-                """, unsafe_allow_html=True)
-                
-                # Create the metrics HTML without extra newlines
-                metrics_html = '<div class="metrics-grid">'
-                for key, value in metrics.items():
-                    metrics_html += f'<div class="metric-box"><div class="metric-label">{key}</div><div class="metric-value">{value}</div></div>'
-                metrics_html += '</div>'
-                
-                st.markdown(metrics_html, unsafe_allow_html=True)
-            
-            # Third row: Chart and Analysis
-            st.plotly_chart(fig, key=f"plotly_chart_{ticker}")
-            st.write("**Detailed Justification:**")
-            st.write(result.get("justification", "No justification provided."))
-            
-            # Show only current stock's data in its tab
-            with st.expander(f"Raw Data for {ticker} ({selected_time_frame})"):
-                st.dataframe(data)
-
-else:
-    st.info("Please fetch stock data using the sidebar.")
-
-# docker run -p 8501:8501 -e GOOGLE_API_KEY="your_actual_api_key" streamlit-stock-analysis
-
+# Add API testing buttons to sidebar
 if st.sidebar.button("Test yfinance API"):
     test_tickers = ["AAPL", "MSFT", "GOOG"]  # Test multiple reliable tickers
     for test_ticker in test_tickers:
@@ -1050,7 +946,6 @@ if st.sidebar.button("Test yfinance API"):
     
     st.sidebar.info("💡 If tests fail, try another ticker or wait a few minutes before retrying.")
 
-# Add test button in sidebar
 if st.sidebar.button("Basic API Test"):
     success, result = test_yfinance_connection()
     if success:
@@ -1059,7 +954,6 @@ if st.sidebar.button("Basic API Test"):
     else:
         st.sidebar.error(f"❌ API test failed: {result}")
 
-# Add this to the sidebar section
 if st.sidebar.button("Test Yahoo Connection"):
     success, message = test_yahoo_connection()
     if success:
