@@ -172,27 +172,30 @@ def fetch_with_retry(ticker, start_date, end_date, interval, max_retries=3, dela
             stock = yf.Ticker(ticker)
             stock.cache_clear()  # Clear any cached data
             
+            # Force numeric data types when downloading
             data = stock.history(
                 start=start_date,
                 end=end_date,
                 interval=interval,
                 actions=False,
                 prepost=False,
-                repair=True  # Enable auto-repair of missing data
+                repair=True,  # Enable auto-repair of missing data
+                keepna=False,  # Remove NaN values
+                ignore_tz=True  # Ignore timezone issues
             )
             
             if not data.empty:
-                # Verify data integrity
-                if all(col in data.columns for col in ['Open', 'High', 'Low', 'Close', 'Volume']):
-                    # Convert columns to numeric, replacing any invalid data with NaN
-                    for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
-                        data[col] = pd.to_numeric(data[col], errors='coerce')
-                    
-                    # Drop any rows with NaN values
-                    data = data.dropna()
-                    
-                    if not data.empty:
-                        return data
+                # Verify data integrity and convert to numeric
+                for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
+                    if col in data.columns:
+                        # Convert to string first to handle any unexpected data types
+                        data[col] = pd.to_numeric(data[col].astype(str), errors='coerce')
+                
+                # Drop any rows with NaN values after conversion
+                data = data.dropna()
+                
+                if not data.empty:
+                    return data
             
             if attempt < max_retries - 1:
                 time.sleep(delay * (attempt + 1))
