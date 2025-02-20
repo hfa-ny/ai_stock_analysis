@@ -88,15 +88,40 @@ def test_yahoo_connection():
 def get_real_time_quote(ticker):
     """Get real-time quote data for a ticker"""
     try:
-        # Get real-time data
+        # Try first method - fast_info
         yf_ticker = yf.Ticker(ticker)
-        real_time = yf_ticker.fast_info
         
-        return {
-            'current_price': real_time.last_price if hasattr(real_time, 'last_price') else None,
-            'previous_close': real_time.previous_close if hasattr(real_time, 'previous_close') else None,
-            'change_percent': real_time.last_price/real_time.previous_close - 1 if hasattr(real_time, 'last_price') and hasattr(real_time, 'previous_close') else None
-        }
+        # Get current market price using different methods
+        try:
+            # Method 1: Try to get live price
+            live_price = yf_ticker.info.get('regularMarketPrice')
+            prev_close = yf_ticker.info.get('regularMarketPreviousClose')
+            
+            if not live_price:
+                # Method 2: Try fast_info
+                live_price = yf_ticker.fast_info.last_price
+                prev_close = yf_ticker.fast_info.previous_close
+                
+            if not live_price:
+                # Method 3: Try getting today's data
+                today_data = yf_ticker.history(period='1d', interval='1m')
+                if not today_data.empty:
+                    live_price = today_data['Close'].iloc[-1]
+                    prev_close = yf_ticker.history(period='2d')['Close'].iloc[-2]
+            
+            if live_price and prev_close:
+                change_percent = (live_price - prev_close) / prev_close
+                return {
+                    'current_price': live_price,
+                    'previous_close': prev_close,
+                    'change_percent': change_percent
+                }
+            
+        except Exception as e:
+            st.sidebar.warning(f"Error fetching real-time data for {ticker}: {str(e)}")
+            
+        return None
+        
     except Exception as e:
         return None
 
