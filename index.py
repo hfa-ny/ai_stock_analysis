@@ -139,29 +139,41 @@ def fetch_with_retry(ticker, start_date, end_date, interval, max_retries=3, dela
     """Fetch stock data with retry logic"""
     for attempt in range(max_retries):
         try:
-            # Force session reset on retry
-            yf.Ticker(ticker).history = None
+            # Create a new Ticker instance each time
+            stock = yf.Ticker(ticker)
+            stock.cache_clear()  # Clear any cached data
             
-            data = yf.download(
-                ticker,
+            data = stock.history(
                 start=start_date,
                 end=end_date,
                 interval=interval,
+                actions=False,
                 prepost=False,
-                progress=False,
-                timeout=20,
-                auto_adjust=False  # Explicitly set auto_adjust to False
+                repair=True  # Enable auto-repair of missing data
             )
             
             if not data.empty:
-                return data
+                # Verify data integrity
+                if all(col in data.columns for col in ['Open', 'High', 'Low', 'Close', 'Volume']):
+                    # Convert columns to numeric, replacing any invalid data with NaN
+                    for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
+                        data[col] = pd.to_numeric(data[col], errors='coerce')
+                    
+                    # Drop any rows with NaN values
+                    data = data.dropna()
+                    
+                    if not data.empty:
+                        return data
             
-        except (requests.exceptions.RequestException, ValueError, json.JSONDecodeError) as e:
+            if attempt < max_retries - 1:
+                time.sleep(delay * (attempt + 1))
+            
+        except Exception as e:
             if attempt == max_retries - 1:
                 raise Exception(f"Failed to fetch data after {max_retries} attempts: {str(e)}")
-            time.sleep(delay * (attempt + 1))  # Exponential backoff
+            time.sleep(delay * (attempt + 1))
     
-    return pd.DataFrame()  # Return empty DataFrame if all retries failed
+    return pd.DataFrame()
 
 # In the "Fetch Data" button click handler, add logging
 if st.sidebar.button("Fetch Data"):
