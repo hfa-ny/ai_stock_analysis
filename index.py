@@ -891,5 +891,64 @@ st.markdown("""
     <div class="market-overview">
 """, unsafe_allow_html=True)
 
+# In the Display Overall Summary tab section
+with tabs[0]:
+    st.markdown("## Market Overview")
+    
+    # First add the modern cards style
+    st.markdown("""
+        <style>
+        .cards-container {
+            display: flex;
+            flex-flow: row wrap;
+            gap: 1rem;
+            padding: 1rem 0;
+            margin-bottom: 2rem;
+            width: 100%;
+        }
+        .stock-card {
+            flex: 1 1 300px;
+            min-width: 300px;
+            max-width: 350px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        .stock-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        </style>
+        <div class="cards-container">
+    """, unsafe_allow_html=True)
+    
+    # Generate all cards HTML in a single string
+    cards_html = ""
+    for ticker in st.session_state["stock_data"]:
+        data = st.session_state["stock_data"][ticker]
+        latest_data = data.iloc[-1]
+        recommendation = next((item["Recommendation"] for item in overall_results if item["Stock"] == ticker), "N/A")
+        color = RECOMMENDATION_COLORS.get(recommendation, "rgba(128, 128, 128, 0.7)")
+        
+        cards_html += f"""
+            <div class="stock-card">
+                <div class="stock-symbol">{ticker}</div>
+                <div class="stock-prices">
+                    Open: {safe_format_price(latest_data['Open'])} · 
+                    Close: {safe_format_price(latest_data['Close'])}
+                </div>
+                <div class="stock-recommendation" style="background-color: {color}">
+                    {recommendation}
+                </div>
+            </div>
+        """
+    
+    # Display all cards at once
+    st.markdown(f"{cards_html}</div>", unsafe_allow_html=True)
+
 
 
