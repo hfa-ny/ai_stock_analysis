@@ -662,3 +662,14 @@ else:
     st.info("Please fetch stock data using the sidebar.")
 
 # docker run -p 8501:8501 -e GOOGLE_API_KEY="your_actual_api_key" streamlit-stock-analysis
+
+if st.sidebar.button("Test yfinance API"):
+    try:
+        test_data = yf.download("AAPL", period="1mo", interval="1d")
+        if not test_data.empty:
+            st.sidebar.success(f"yfinance API test successful! Fetched {len(test_data)} rows.")
+            st.write(test_data)
+        else:
+            st.sidebar.error("No data fetched for AAPL. Check yfinance API.")
+    except Exception as e:
+        st.sidebar.error(f"yfinance API test failed: {e}")
