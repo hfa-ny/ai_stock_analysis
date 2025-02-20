@@ -1,9 +1,8 @@
-# Configure Streamlit page first
+# Configure Streamlit page - must be the first Streamlit command
 import streamlit as st
 st.set_page_config(layout="wide", initial_sidebar_state="expanded")
 
 # Rest of the imports
-import google.generativeai as genai
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
@@ -16,6 +15,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pandas_market_calendars as mcal
 import requests.exceptions
 import requests
+import google.generativeai as genai
 
 # Add this helper function at the top of the file, after imports
 def safe_format_price(value):
@@ -389,7 +389,6 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             for col in numeric_columns:
                 if col in data.columns:
                     if not pd.api.types.is_numeric_dtype(data[col]):
-                        # Convert to string first to handle any data type
                         data[col] = pd.to_numeric(data[col].astype(str), errors='coerce')
             
             # Drop any NaN values after conversion
@@ -404,14 +403,14 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             
             if data.empty:
                 raise ValueError(f"No valid numeric data available for {ticker} after cleaning")
-                
-            # Build candlestick chart with validation
+
+            # Create the candlestick chart
             candlestick = go.Candlestick(
                 x=data.index,
                 open=data['Open'],
                 high=data['High'],
                 low=data['Low'],
-                close=data['Close'],  # Fixed: removed parentheses
+                close=data['Close'],
                 name="Price",
                 increasing_line_color='#26A69A',
                 decreasing_line_color='#EF5350'
@@ -419,155 +418,6 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             
             fig = go.Figure(data=[candlestick])
             
-            # Update layout with error handling
-            try:
-                latest_data = data.iloc[-1]
-                latest_open = safe_format_price(latest_data['Open'])
-                latest_close = safe_format_price(latest_data['Close'])
-                
-                title_text = f"{ticker} Stock Price"
-                if latest_open != "N/A" and latest_close != "N/A":
-                    title_text += f" (Open: {latest_open} Close: {latest_close})"
-                
-                fig.update_layout(
-                    title=dict(
-                        text=title_text,
-                        y=0.95,
-                        x=0.5,
-                        xanchor='center',
-                        yanchor='top'
-                    ),
-                    yaxis_title="Price",
-                    xaxis_title="Date",
-                    xaxis_rangeslider_visible=False,
-                    template="plotly_white",
-                    height=600
-                )
-                
-            except Exception as layout_error:
-                st.warning(f"Warning: Could not update chart layout with latest prices: {layout_error}")
-                fig.update_layout(title=f"{ticker} Stock Price")
-
-            # Debug data
-            st.sidebar.write(f"Debug - Data shape for {ticker}: {data.shape}")
-            st.sidebar.write(f"Debug - First few rows of data:")
-            st.sidebar.write(data.head())
-            
-            # Make sure we have the required columns
-            required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
-            if not all(col in data.columns for col in required_columns):
-                missing_cols = [col for col in required_columns if col not in data.columns]
-                raise ValueError(f"Missing required columns: {missing_cols}")
-
-            # Ensure data is properly sorted by date
-            data = data.sort_index()
-            
-            # Get the max points limit and interval for the selected timeframe
-            timeframe_info = time_frame_options[selected_time_frame]
-            interval = timeframe_info["interval"]
-            
-            if data.empty:
-                st.warning(f"No data available for {ticker} with {interval} interval")
-                empty_fig = go.Figure()
-                empty_fig.add_annotation(
-                    text="No data available for selected timeframe",
-                    xref="paper", yref="paper",
-                    x=0.5, y=0.5, showarrow=False
-                )
-                return empty_fig, {"action": "Error", "justification": "No data available for selected timeframe"}
-
-            # Clean data - handle NaN values
-            data = data.copy()  # Create a copy to avoid SettingWithCopyWarning
-            data = data.dropna()
-            
-            # Build candlestick chart
-            fig = go.Figure(data=[
-                go.Candlestick(
-                    x=data.index,
-                    open(data['Open']),  # Fixed: removed parentheses
-                    high(data['High']),  # Fixed: removed parentheses
-                    low(data['Low']),    # Fixed: removed parentheses
-                    close(data['Close']), # Fixed: removed parentheses
-                    name="Price"
-                )
-            ])
-
-            # Add this before creating the chart
-            if selected_time_frame in ["5min", "15min", "1hour"]:
-                # Remove data points with no volume
-                data = data[data['Volume'] > 0]
-                
-                # Remove outliers
-                Q1 = data['Close'].quantile(0.25)
-                Q3 = data['Close'].quantile(0.75)
-                IQR = Q3 - Q1
-                lower_bound = Q1 - 1.5 * IQR
-                upper_bound = Q3 + 1.5 * IQR
-
-                # Filter out extreme values
-                data = data[
-                    (data['Close'] >= lower_bound) & 
-                    (data['Close'] <= upper_bound)
-                ]
-
-                # Forward fill small gaps (only for remaining data)
-                data = data.fillna(method='ffill', limit=3)
-
-                # Remove any remaining NaN values
-                data = data.dropna()
-
-            # Build candlestick chart with logarithmic scale
-            fig = go.Figure(data=[
-                go.Candlestick(
-                    x=data.index,
-                    open=data['Open'],
-                    high=data['High'],
-                    low(data['Low']),
-                    close(data['Close']),  # Fixed: removed function call
-                    name="Price",
-                    increasing_line_color='#26A69A',
-                    decreasing_line_color='#EF5350'
-                )
-            ])
-
-            # Update layout with logarithmic scale for small timeframes
-            fig.update_layout(
-                title=f"{ticker} Stock Price",
-                yaxis_title="Price (log scale)" if selected_time_frame in ["5min", "15min", "1hour"] else "Price",
-                xaxis_title="Date",
-                yaxis_type="log" if selected_time_frame in ["5min", "15min", "1hour"] else "linear",
-                xaxis_rangeslider_visible=False,
-                template="plotly_white",
-                height=600,
-                yaxis=dict(
-                    gridcolor="rgba(128, 128, 128, 0.2)",
-                    zerolinecolor="rgba(128, 128, 128, 0.2)",
-                    tickformat=".2f",
-                    showgrid=True,
-                    showline=True
-                ),
-                xaxis=dict(
-                    gridcolor="rgba(128, 128, 128, 0.2)",
-                    rangeslider=dict(visible=False),
-                    showgrid=True,
-                    showline=True,
-                    type='date'
-                ),
-                plot_bgcolor='white',
-                paper_bgcolor='white',
-                margin=dict(l=50, r=50, t=50, b=50),
-                showlegend=True
-            )
-
-            # For intraday data, add specific configurations
-            if selected_time_frame in ["5min", "15min", "1hour"]:
-                fig.update_xaxes(
-                    rangebreaks=[
-                        dict(bounds=["sat", "mon"]),  # Hide weekends
-                        dict(bounds=[20, 4], pattern="hour"),  # Hide non-trading hours
-                    ]
-                )
-
             # Add selected technical indicators
             def add_indicator(indicator):
                 try:
@@ -598,15 +448,10 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                         
                         # Add RSI subplot
                         fig.add_trace(
-                            go.Scatter(
-                                x=data.index,
-                                y=rsi,
-                                name='RSI',
-                                yaxis="y2"
-                            )
+                            go.Scatter(x=data.index, y=rsi, name='RSI', yaxis="y2")
                         )
                         
-                        # Update layout to include RSI subplot
+                        # Update layout for RSI
                         fig.update_layout(
                             yaxis2=dict(
                                 title="RSI",
@@ -614,44 +459,15 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                                 side="right",
                                 range=[0, 100],
                                 showgrid=False
-                            ),
-                            # Add RSI level lines
-                            shapes=[
-                                # Overbought line (70)
-                                dict(
-                                    type="line",
-                                    xref="paper",
-                                    x0=0,
-                                    x1=1,
-                                    y0=70,
-                                    y1=70,
-                                    yref="y2",
-                                    line=dict(
-                                        color="red",
-                                        width=1,
-                                        dash="dash"
-                                    )
-                                ),
-                                # Oversold line (30)
-                                dict(
-                                    type="line",
-                                    xref="paper",
-                                    x0=0,
-                                    x1=1,
-                                    y0=30,
-                                    y1=30,
-                                    yref="y2",
-                                    line=dict(
-                                        color="green",
-                                        width=1,
-                                        dash="dash"
-                                    )
-                                )
-                            ]
+                            )
                         )
                         
                 except Exception as e:
                     st.warning(f"Error adding indicator {indicator}: {str(e)}")
+
+            # Add indicators
+            for ind in indicators:
+                add_indicator(ind)
 
             # Update layout
             fig.update_layout(
@@ -659,22 +475,11 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 yaxis_title="Price",
                 xaxis_title="Date",
                 xaxis_rangeslider_visible=False,
-                xaxis_rangeselector=dict(  # Add range selector for better navigation
-                    buttons=list([
-                        dict(count=1, label="1D", step="day", stepmode="backward"),
-                        dict(count=5, label="5D", step="day", stepmode="backward"),
-                        dict(count=1, label="1M", step="month", stepmode="backward"),
-                        dict(count=3, label="3M", step="month", stepmode="backward"),
-                        dict(count=6, label="6M", step="month", stepmode="backward"),
-                        dict(count=1, label="1Y", step="year", stepmode="backward"),
-                        dict(step="all")
-                    ])
-                )
+                template="plotly_white",
+                height=600
             )
 
-            # Add indicators
-            for ind in indicators: # **'indicators' is now passed as argument**
-                add_indicator(ind)
+            # Rest of analyze_ticker function remains the same...
 
             # Update the chart title and layout in analyze_ticker function
             # Get latest prices and use safe formatting
