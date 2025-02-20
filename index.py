@@ -65,6 +65,21 @@ def test_yfinance_connection():
     except Exception as e:
         return False, f"Error: {str(e)}"
 
+# Add at the top with other imports
+def test_yahoo_connection():
+    """Test direct connection to Yahoo Finance"""
+    url = "https://query1.finance.yahoo.com/v8/finance/chart/AAPL?range=1d&interval=1d"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    }
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            return True, "Connection successful"
+        return False, f"Connection failed with status code: {response.status_code}"
+    except Exception as e:
+        return False, f"Connection error: {str(e)}"
+
 # Configure the API key - Use Streamlit secrets or environment variables for security
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
@@ -1033,3 +1048,11 @@ if st.sidebar.button("Basic API Test"):
         st.sidebar.dataframe(result.head())
     else:
         st.sidebar.error(f"❌ API test failed: {result}")
+
+# Add this to the sidebar section
+if st.sidebar.button("Test Yahoo Connection"):
+    success, message = test_yahoo_connection()
+    if success:
+        st.sidebar.success("✅ Direct Yahoo Finance connection test successful")
+    else:
+        st.sidebar.error(f"❌ Yahoo Finance connection test failed: {message}")
