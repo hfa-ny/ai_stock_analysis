@@ -158,23 +158,32 @@ start_date = st.sidebar.date_input("Start Date", value=start_date_default)
 end_date = st.sidebar.date_input("End Date", value=end_date_default)
 
 # --- New: Time Frame Selection ---
-# Update the time frame options with more conservative settings
+# Update the time frame options with more choices
 time_frame_options = {
     "1day": {"interval": "1d", "days": 365, "max_points": None},
     "5day": {"interval": "5d", "days": 365, "max_points": None},
     "1week": {"interval": "1wk", "days": 730, "max_points": None},
     "1month": {"interval": "1mo", "days": 1825, "max_points": None},
-    "3month": {"interval": "3mo", "days": 1825, "max_points": None}
+    "3month": {"interval": "3mo", "days": 1825, "max_points": None},
+    # Add new options
+    "15min": {"interval": "15m", "days": 60, "max_points": None},
+    "30min": {"interval": "30m", "days": 60, "max_points": None},
+    "1hour": {"interval": "1h", "days": 730, "max_points": None},
+    "90min": {"interval": "90m", "days": 60, "max_points": None},
+    "2hour": {"interval": "2h", "days": 60, "max_points": None},
+    "4hour": {"interval": "4h", "days": 60, "max_points": None},
 }
 
 # Add warning for intraday data limitations
 def show_timeframe_warning(selected_timeframe):
-    if (selected_timeframe in ["5min", "15min"]):
+    intraday_frames = ["15min", "30min", "1hour", "90min", "2hour", "4hour"]
+    if selected_timeframe in intraday_frames:
         st.sidebar.warning(f"""
         ⚠️ Important Note for {selected_timeframe} timeframe:
         - Limited to last {time_frame_options[selected_timeframe]['days']} days only
         - Data might be delayed or limited
         - May not work outside market hours
+        - Premium API limits may apply
         """)
 
 # Update the sidebar selection with new timeframes
