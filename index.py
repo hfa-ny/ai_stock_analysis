@@ -955,3 +955,54 @@ with tabs[0]:
         """, unsafe_allow_html=True)
 
     st.markdown("</div>", unsafe_allow_html=True)
+
+# Update the card styling in the first Market Overview section
+st.markdown("""
+    <style>
+    .modern-summary {
+        display: flex;
+        flex-flow: row wrap;
+        gap: 1.5rem;
+        padding: 1rem 0;
+        margin-bottom: 2rem;
+        width: 100%;
+        justify-content: flex-start;
+    }
+    .stock-card {
+        flex: 1 1 250px;  /* Changed from 300px to allow more cards per row */
+        max-width: calc(33.33% - 1rem);  /* Ensures 3 cards per row maximum */
+        min-width: 250px;  /* Minimum width before wrapping */
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        position: relative;
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+    .stock-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .stock-details {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 1.2rem;
+        font-size: 1rem;
+        color: #666;
+    }
+    .price-change {
+        font-size: 0.9rem;
+        margin-bottom: 1rem;
+    }
+    .recommendation-badge {
+        display: inline-block;
+        padding: 0.5rem 1rem;
+        border-radius: 20px;
+        font-weight: 500;
+        font-size: 0.9rem;
+        text-align: center;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    </style>
+""", unsafe_allow_html=True)
