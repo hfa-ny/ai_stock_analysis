@@ -348,7 +348,7 @@ if st.sidebar.button("Fetch Data"):
 
             if not data.empty:
                 stock_data[ticker] = data
-                st.success(f"Successfully fetched {len(data)} rows for {ticker}")
+                #st.success(f"Successfully fetched {len(data)} rows for {ticker}")
             else:
                 failed_tickers.append(ticker)
                 st.warning(f"No data found for {ticker}. The symbol might be incorrect or delisted.")
@@ -360,7 +360,7 @@ if st.sidebar.button("Fetch Data"):
     if stock_data:
         st.session_state["stock_data"] = stock_data
         # log_debug("Session State Data", stock_data)  # Commented out debug logging
-        st.success(f"Stock data loaded successfully for {len(stock_data)} ticker(s)")
+        #st.success(f"Stock data loaded successfully for {len(stock_data)} ticker(s)")
         if failed_tickers:
             st.warning(f"Failed to fetch data for: {', '.join(failed_tickers)}")
     else:
