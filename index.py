@@ -29,13 +29,16 @@ def safe_format_price(value):
 
 # After imports, add debug logging
 def log_debug(title, data):
-    st.sidebar.markdown(f"**Debug: {title}**")
-    if isinstance(data, pd.DataFrame):
-        st.sidebar.write(f"Shape: {data.shape}")
-        st.sidebar.write("First few rows:")
-        st.sidebar.write(data.head())
-    else:
-        st.sidebar.write(data)
+    """Debug logging function (currently disabled)"""
+    # Commented out debug statements
+    # st.sidebar.markdown(f"**Debug: {title}**")
+    # if isinstance(data, pd.DataFrame):
+    #     st.sidebar.write(f"Shape: {data.shape}")
+    #     st.sidebar.write("First few rows:")
+    #     st.sidebar.write(data.head())
+    # else:
+    #     st.sidebar.write(data)
+    pass
 
 # Add this function after the imports
 def test_yfinance_connection():
@@ -55,7 +58,7 @@ def test_yfinance_connection():
             repair=True
         )
         
-        if hist.empty:
+        if (hist.empty):
             return False, "No data returned from yfinance"
         
         required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
@@ -254,12 +257,12 @@ def fetch_with_retry(ticker, start_date, end_date, interval, max_retries=3, dela
                 return backup_data
             
             if attempt < max_retries - 1:
-                st.sidebar.warning(f"Attempt {attempt + 1} failed for {ticker}, retrying...")
+                # st.sidebar.warning(f"Attempt {attempt + 1} failed for {ticker}, retrying...")  # Commented out debug message
                 time.sleep(delay * (attempt + 1))
             
         except Exception as e:
             if attempt == max_retries - 1:
-                st.sidebar.error(f"Failed to fetch {ticker} after all attempts: {str(e)}")
+                # st.sidebar.error(f"Failed to fetch {ticker} after all attempts: {str(e)}")  # Commented out debug message
                 # Try one last time with minimal parameters
                 try:
                     data = yf.download(ticker, period="1mo", progress=False)
@@ -268,10 +271,32 @@ def fetch_with_retry(ticker, start_date, end_date, interval, max_retries=3, dela
                 except:
                     pass
                 raise Exception(f"All fetch attempts failed for {ticker}")
-            st.sidebar.warning(f"Attempt {attempt + 1} failed: {str(e)}, retrying...")
+            # st.sidebar.warning(f"Attempt {attempt + 1} failed: {str(e)}, retrying...")  # Commented out debug message
             time.sleep(delay * (attempt + 1))
     
     return pd.DataFrame()
+
+# Add at the top after imports and before page config
+def initialize_session_state():
+    """Initialize or reset session state variables"""
+    if 'debug_mode' not in st.session_state:
+        st.session_state.debug_mode = False
+    if 'last_fetch_time' not in st.session_state:
+        st.session_state.last_fetch_time = None
+    if 'fetch_attempts' not in st.session_state:
+        st.session_state.fetch_attempts = {}
+
+# Comment out debug options in sidebar
+# st.sidebar.header("Debug Options")
+# st.session_state.debug_mode = st.sidebar.checkbox("Enable Debug Mode", value=False)
+
+# if st.session_state.debug_mode:
+#     st.sidebar.markdown("### Session State Debug")
+#     st.sidebar.write("Last fetch time:", st.session_state.get('last_fetch_time'))
+#     st.sidebar.write("Fetch attempts:", st.session_state.get('fetch_attempts'))
+#     if 'stock_data' in st.session_state:
+#         for ticker, data in st.session_state['stock_data'].items():
+#             st.sidebar.markdown(f"**{ticker} Data Shape:** {data.shape}")
 
 # In the "Fetch Data" button click handler, add logging
 if st.sidebar.button("Fetch Data"):
@@ -284,13 +309,14 @@ if st.sidebar.button("Fetch Data"):
             max_days = time_frame_options[selected_time_frame]["days"]
             interval = time_frame_options[selected_time_frame]["interval"]
 
-            log_debug("Fetch Parameters", {
-                "ticker": ticker,
-                "interval": interval,
-                "max_days": max_days,
-                "start_date": start_date,
-                "end_date": end_date
-            })
+            # Commented out debug logging
+            # log_debug("Fetch Parameters", {
+            #     "ticker": ticker,
+            #     "interval": interval,
+            #     "max_days": max_days,
+            #     "start_date": start_date,
+            #     "end_date": end_date
+            # })
 
             # Adjust start date based on timeframe
             adjusted_start_date = datetime.today() - timedelta(days=max_days)
@@ -305,7 +331,7 @@ if st.sidebar.button("Fetch Data"):
                 interval=interval
             )
             
-            log_debug(f"Fetched Data for {ticker}", data)
+            # log_debug(f"Fetched Data for {ticker}", data)  # Commented out debug logging
 
             if not data.empty:
                 stock_data[ticker] = data
@@ -320,7 +346,7 @@ if st.sidebar.button("Fetch Data"):
 
     if stock_data:
         st.session_state["stock_data"] = stock_data
-        log_debug("Session State Data", stock_data)
+        # log_debug("Session State Data", stock_data)  # Commented out debug logging
         st.success(f"Stock data loaded successfully for {len(stock_data)} ticker(s)")
         if failed_tickers:
             st.warning(f"Failed to fetch data for: {', '.join(failed_tickers)}")
@@ -342,6 +368,16 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
     def get_financial_metrics(ticker_symbol):
         """Get key financial metrics for a stock"""
         try:
+            # Skip detailed metrics for index symbols
+            if ticker_symbol.startswith('^'):
+                return {
+                    "Type": "Market Index",
+                    "Note": "Detailed metrics not available for indices"
+                }
+            
+            # Add delay between API calls
+            time.sleep(2)  # Wait 2 seconds between requests
+            
             ticker = yf.Ticker(ticker_symbol)
             info = ticker.info
             
@@ -371,7 +407,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                         
             return metrics
         except Exception as e:
-            st.warning(f"Error fetching financial data for {ticker_symbol}: {str(e)}")
+            # st.warning(f"Error fetching financial data for {ticker_symbol}: {str(e)}")  # Commented out debug message
             return {}
 
     # Define a function to build chart, call the Gemini API and return structured result
@@ -446,12 +482,10 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                         rs = gain / loss
                         rsi = 100 - (100 / (1 + rs))
                         
-                        # Add RSI subplot
                         fig.add_trace(
                             go.Scatter(x=data.index, y=rsi, name='RSI', yaxis="y2")
                         )
                         
-                        # Update layout for RSI
                         fig.update_layout(
                             yaxis2=dict(
                                 title="RSI",
@@ -461,9 +495,8 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                                 showgrid=False
                             )
                         )
-                        
                 except Exception as e:
-                    st.warning(f"Error adding indicator {indicator}: {str(e)}")
+                    pass  # Commented out: st.warning(f"Error adding indicator {indicator}: {str(e)}")
 
             # Add indicators
             for ind in indicators:
@@ -551,8 +584,8 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             return fig, result
 
         except Exception as e:
-            st.error(f"Error analyzing {ticker}: {str(e)}")
-            st.error(f"Analysis error details: {e}")
+            # st.error(f"Error analyzing {ticker}: {str(e)}")  # Commented out error message
+            # st.error(f"Analysis error details: {str(e)}")    # Commented out error details
             empty_fig = go.Figure()
             empty_fig.add_annotation(
                 text=f"Error during analysis: {str(e)}",
@@ -569,7 +602,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
     # First loop to collect all analyses
     for ticker in st.session_state["stock_data"]:
         data = st.session_state["stock_data"][ticker]
-        log_debug(f"Pre-analysis data for {ticker}", data)
+        # log_debug(f"Pre-analysis data for {ticker}", data)  # Commented out debug logging
         
         # Create a copy of the data to avoid modifying the original
         data = data.copy()
@@ -580,7 +613,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 data[col] = pd.to_numeric(data[col].astype(str), errors='coerce')
         
         # Verify data after conversion
-        log_debug(f"Post-conversion data for {ticker}", data)
+        # log_debug(f"Post-conversion data for {ticker}", data)  # Commented out debug logging
         
         if data.empty:
             st.error(f"No valid data for {ticker} after conversion")
@@ -640,7 +673,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                     try:
                         data[col] = pd.to_numeric(data[col].astype(str), errors='coerce')
                     except Exception as e:
-                        st.warning(f"Warning: Could not convert {col} column to numeric: {str(e)}")
+                        pass  # Commented out: st.warning(f"Warning: Could not convert {col} column to numeric: {str(e)})
             
             fig, result = fig_results[ticker]
             
@@ -661,7 +694,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                         </h3>
                     """, unsafe_allow_html=True)
                 except Exception as e:
-                    st.error(f"Error displaying price data: {str(e)}")
+                    pass  # Commented out: st.error(f"Error displaying price data: {str(e)})
                     
             # ... rest of the tab display code remains the same ...
 
@@ -722,46 +755,46 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
 else:
     st.info("Please fetch stock data using the sidebar.")
 
-# Add API testing buttons to sidebar
-if st.sidebar.button("Test yfinance API"):
-    test_tickers = ["AAPL", "MSFT", "GOOG"]  # Test multiple reliable tickers
-    for test_ticker in test_tickers:
-        try:
-            # Test with shorter timeframe first
-            test_data = fetch_with_retry(
-                test_ticker,
-                start_date=datetime.today() - timedelta(days=5),
-                end_date=datetime.today(),
-                interval="1d"
-            )
+# Comment out debug testing buttons at the bottom of the file
+# if st.sidebar.button("Test yfinance API"):
+#     test_tickers = ["AAPL", "MSFT", "GOOG"]  # Test multiple reliable tickers
+#     for test_ticker in test_tickers:
+#         try:
+#             # Test with shorter timeframe first
+#             test_data = fetch_with_retry(
+#                 test_ticker,
+#                 start_date=datetime.today() - timedelta(days=5),
+#                 end_date=datetime.today(),
+#                 interval="1d"
+#             )
             
-            if not test_data.empty:
-                st.sidebar.success(f"✅ {test_ticker}: Successfully fetched {len(test_data)} rows")
-                log_debug(f"Test Data for {test_ticker}", test_data)
+#             if not test_data.empty:
+#                 st.sidebar.success(f"✅ {test_ticker}: Successfully fetched {len(test_data)} rows")
+#                 log_debug(f"Test Data for {test_ticker}", test_data)
                 
-                # Verify data quality
-                missing_data = test_data.isnull().sum()
-                if missing_data.sum() > 0:
-                    st.sidebar.warning(f"⚠️ {test_ticker}: Contains some missing values:\n{missing_data}")
-            else:
-                st.sidebar.error(f"❌ {test_ticker}: No data received")
+#                 # Verify data quality
+#                 missing_data = test_data.isnull().sum()
+#                 if missing_data.sum() > 0:
+#                     st.sidebar.warning(f"⚠️ {test_ticker}: Contains some missing values:\n{missing_data}")
+#             else:
+#                 st.sidebar.error(f"❌ {test_ticker}: No data received")
                 
-        except Exception as e:
-            st.sidebar.error(f"❌ {test_ticker}: API test failed: {str(e)}")
+#         except Exception as e:
+#             st.sidebar.error(f"❌ {test_ticker}: API test failed: {str(e)}")
     
-    st.sidebar.info("💡 If tests fail, try another ticker or wait a few minutes before retrying.")
+#     st.sidebar.info("💡 If tests fail, try another ticker or wait a few minutes before retrying.")
 
-if st.sidebar.button("Basic API Test"):
-    success, result = test_yfinance_connection()
-    if success:
-        st.sidebar.success("✅ Basic API test successful!")
-        st.sidebar.dataframe(result.head())
-    else:
-        st.sidebar.error(f"❌ API test failed: {result}")
+# if st.sidebar.button("Basic API Test"):
+#     success, result = test_yfinance_connection()
+#     if success:
+#         st.sidebar.success("✅ Basic API test successful!")
+#         st.sidebar.dataframe(result.head())
+#     else:
+#         st.sidebar.error(f"❌ API test failed: {result}")
 
-if st.sidebar.button("Test Yahoo Connection"):
-    success, message = test_yahoo_connection()
-    if success:
-        st.sidebar.success("✅ Direct Yahoo Finance connection test successful")
-    else:
-        st.sidebar.error(f"❌ Yahoo Finance connection test failed: {message}")
+# if st.sidebar.button("Test Yahoo Connection"):
+#     success, message = test_yahoo_connection()
+#     if success:
+#         st.sidebar.success("✅ Direct Yahoo Finance connection test successful")
+#     else:
+#         st.sidebar.error(f"❌ Yahoo Finance connection test failed: {message}")
