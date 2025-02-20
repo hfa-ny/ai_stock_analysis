@@ -157,7 +157,7 @@ time_frame_options = {
 }
 
 def show_timeframe_warning(selected_timeframe):
-    intraday_frames = ["1min", "5min","15min", "30min", "1hour", "90min", "2hour", "4hour"]
+    intraday_frames = ["1min", "5min","15min", "30min", "1hour", "90min", "2hour"]
     if selected_timeframe in intraday_frames:
         st.sidebar.warning(f"""
         ⚠️ Important Note for {selected_timeframe} timeframe:
