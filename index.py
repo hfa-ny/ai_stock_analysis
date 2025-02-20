@@ -424,7 +424,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 f"Analyze the stock chart for {ticker} based on its candlestick chart and the displayed technical indicators. "
                 f"Identify any potential patterns, signals, or trends that you observe. "
                 f"Identify potential support and resistance levels, and any other key insights. "
-                f"Always try to give your best estimates on buy and sell levels."
+                f"Always try to give your best estimates on recommnded buy and sell levels. Example: 6002.5, 5980.0, 6025.0, 6050.0. seems to a good buy level, while 6100.0, 6125.0, 6150.0 seems to be a good sell level."
                 f"Provide a detailed justification of your analysis, explaining what patterns, signals, and trends you observe. "
                 f"Then, based solely on the chart, patterns, signals, and significant levels provide a recommendation from the following options: "
                 f"'Strong Buy', 'Buy', 'Weak Buy', 'Hold', 'Weak Sell', 'Sell', or 'Strong Sell'. "
