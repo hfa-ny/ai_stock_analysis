@@ -1,15 +1,16 @@
-## Gemini AI-Powered Stocks Technical Analysis 
+# Configure Streamlit page first
+import streamlit as st
+st.set_page_config(layout="wide", initial_sidebar_state="expanded")
 
-# Libraries - Importing necessary Python libraries
-import streamlit as st  # Streamlit for creating the web application interface
+# Rest of the imports
 import google.generativeai as genai
-import yfinance as yf  # yfinance to download historical stock market data from Yahoo Finance
-import pandas as pd  # pandas for data manipulation and analysis (DataFrames)
-import plotly.graph_objects as go  # plotly for creating interactive charts, specifically candlestick charts
-import tempfile  # tempfile for creating temporary files (used to save chart images)
-import os  # os for interacting with the operating system (e.g., deleting temporary files)
-import json  # json for working with JSON data (expected response format from Gemini)
-from datetime import datetime, timedelta  # datetime and timedelta for date and time calculations
+import yfinance as yf
+import pandas as pd
+import plotly.graph_objects as go
+import tempfile
+import os
+import json
+from datetime import datetime, timedelta
 import time
 from concurrent.futures import ThreadPoolExecutor
 import pandas_market_calendars as mcal
@@ -86,9 +87,6 @@ genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 # Select the Gemini model - using 'gemini-2.0-flash' as a general-purpose model
 MODEL_NAME = 'gemini-2.0-flash'
 gen_model = genai.GenerativeModel(MODEL_NAME)
-
-# Update the page config and title section
-st.set_page_config(layout="wide", initial_sidebar_state="expanded")
 
 # Add custom CSS to fix header spacing
 st.markdown("""
@@ -279,106 +277,6 @@ def fetch_with_retry(ticker, start_date, end_date, interval, max_retries=3, dela
     
     return pd.DataFrame()
 
-# Configure the API key - Use Streamlit secrets or environment variables for security
-genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-
-# Select the Gemini model - using 'gemini-2.0-flash' as a general-purpose model
-MODEL_NAME = 'gemini-2.0-flash'
-gen_model = genai.GenerativeModel(MODEL_NAME)
-
-# Update the page config and title section
-st.set_page_config(layout="wide", initial_sidebar_state="expanded")
-
-# Add custom CSS to fix header spacing
-st.markdown("""
-    <style>
-        .block-container {
-            padding-top: 3rem !important;
-            padding-bottom: 1rem !important;
-        }
-        header {
-            margin-bottom: 2rem !important;
-        }
-        .main > div {
-            padding-left: 2rem !important;
-            padding-right: 2rem !important;
-        }
-        .financial-metrics {
-            font-size: 0.8rem !important;
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-            justify-content: space-between;
-        }
-        .metric-item {
-            flex: 1 1 auto;
-            min-width: 120px;
-            padding: 0.3rem;
-        }
-        .metric-label {
-            color: #666;
-            font-size: 0.7rem !important;
-        }
-        .metric-value {
-            font-weight: bold;
-            font-size: 0.8rem !important;
-        }
-        #MainMenu {visibility: visible;}
-        header {visibility: visible;}
-        footer {visibility: hidden;}
-    </style>
-""", unsafe_allow_html=True)
-
-st.title("HFA AI-Powered Technical Stock Analysis")
-st.sidebar.header("Configuration")
-
-# Input for multiple stock tickers (comma-separated)
-tickers_input = st.sidebar.text_input("Enter Stock Tickers (comma-separated):", "AAPL,^GSPC")
-tickers = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
-
-# Set the date range: default is one year before today to today
-end_date_default = datetime.today()
-start_date_default = end_date_default - timedelta(days=365)
-start_date = st.sidebar.date_input("Start Date", value=start_date_default)
-end_date = st.sidebar.date_input("End Date", value=end_date_default)
-
-# --- New: Time Frame Selection ---
-# Update the time frame options with more conservative settings
-time_frame_options = {
-    "1day": {"interval": "1d", "days": 365, "max_points": None},
-    "5day": {"interval": "5d", "days": 365, "max_points": None},
-    "1week": {"interval": "1wk", "days": 730, "max_points": None},
-    "1month": {"interval": "1mo", "days": 1825, "max_points": None},
-    "3month": {"interval": "3mo", "days": 1825, "max_points": None}
-}
-
-# Add warning for intraday data limitations
-def show_timeframe_warning(selected_timeframe):
-    if (selected_timeframe in ["5min", "15min"]):
-        st.sidebar.warning(f"""
-        ⚠️ Important Note for {selected_timeframe} timeframe:
-        - Limited to last {time_frame_options[selected_timeframe]['days']} days only
-        - Data might be delayed or limited
-        - May not work outside market hours
-        """)
-
-# Update the sidebar selection with new timeframes
-selected_time_frame = st.sidebar.selectbox(
-    "Select Time Frame",
-    list(time_frame_options.keys()),
-    index=list(time_frame_options.keys()).index("1day") 
-)
-show_timeframe_warning(selected_time_frame)
-
-# Technical indicators selection (applied to every ticker)
-st.sidebar.subheader("Technical Indicators")
-# Update the indicators selection list
-indicators = st.sidebar.multiselect(
-    "Select Indicators:",
-    ["20-Day SMA", "20-Day EMA", "20-Day Bollinger Bands", "VWAP", "RSI"],  # Added RSI
-    default=["20-Day SMA"]
-)
-
 # In the "Fetch Data" button click handler, add logging
 if st.sidebar.button("Fetch Data"):
     stock_data = {}
@@ -514,7 +412,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 open=data['Open'],
                 high=data['High'],
                 low=data['Low'],
-                close=data['Close'],
+                close(data['Close']),
                 name="Price",
                 increasing_line_color='#26A69A',
                 decreasing_line_color='#EF5350'
@@ -587,10 +485,10 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             fig = go.Figure(data=[
                 go.Candlestick(
                     x=data.index,
-                    open=data['Open'],
-                    high=data['High'],
-                    low=data['Low'],
-                    close=data['Close'],
+                    open(data['Open']),
+                    high(data['High']),
+                    low(data['Low']),
+                    close(data['Close']),
                     name="Price"
                 )
             ])
@@ -623,10 +521,10 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             fig = go.Figure(data=[
                 go.Candlestick(
                     x=data.index,
-                    open=data['Open'],
-                    high=data['High'],
-                    low=data['Low'],
-                    close=data['Close'],
+                    open(data['Open']),
+                    high(data['High']),
+                    low(data['Low']),
+                    close(data['Close']),
                     name="Price",
                     increasing_line_color='#26A69A',
                     decreasing_line_color='#EF5350'
@@ -944,6 +842,108 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             
             # First row: Title and Recommendation
             col1, col2 = st.columns([3, 2])
+            with col1:
+                try:
+                    latest_data = data.iloc[-1]
+                    open_price = safe_format_price(latest_data.get('Open'))
+                    close_price = safe_format_price(latest_data.get('Close'))
+                    
+                    st.markdown(f"""
+                        <h3 style='margin-bottom: 0px;'>
+                            Analysis for {ticker}
+                            <span style='font-size: 0.8em; font-weight: normal; color: #666;'>
+                                (Open: {open_price} Close: {close_price})
+                            </span>
+                        </h3>
+                    """, unsafe_allow_html=True)
+                except Exception as e:
+                    st.error(f"Error displaying price data: {str(e)}")
+                    
+            # ... rest of the tab display code remains the same ...
+
+            # Second row: Financial Metrics
+            metrics = get_financial_metrics(ticker)
+            if metrics:
+                st.markdown("""
+                    <style>
+                        .metrics-grid {
+                            display: flex;
+                            flex-direction: row;
+                            flex-wrap: nowrap;
+                            gap: 8px;
+                            overflow-x: auto;
+                            padding: 8px 0;
+                            margin: 10px 0;
+                            width: 100%;
+                        }
+                        .metric-box {
+                            flex: 0 0 auto;
+                            background-color: #f8f9fa;
+                            border-radius: 4px;
+                            padding: 8px;
+                            text-align: center;
+                            min-width: 120px;
+                        }
+                        .metric-label {
+                            color: #666;
+                            font-size: 0.7rem;
+                            margin-bottom: 4px;
+                            white-space: nowrap;
+                        }
+                        .metric-value {
+                            font-weight: bold;
+                            font-size: 0.8rem;
+                            white-space: nowrap;
+                        }
+                    </style>
+                """, unsafe_allow_html=True)
+                
+                # Create the metrics HTML without extra newlines
+                metrics_html = '<div class="metrics-grid">'
+                for key, value in metrics.items():
+                    metrics_html += f'<div class="metric-box"><div class="metric-label">{key}</div><div class="metric-value">{value}</div></div>'
+                metrics_html += '</div>'
+                
+                st.markdown(metrics_html, unsafe_allow_html=True)
+            
+            # Third row: Chart and Analysis
+            st.plotly_chart(fig, key=f"plotly_chart_{ticker}")
+            st.write("**Detailed Justification:**")
+            st.write(result.get("justification", "No justification provided."))
+            
+            # Show only current stock's data in its tab
+            with st.expander(f"Raw Data for {ticker} ({selected_time_frame})"):
+                st.dataframe(data)
+
+else:
+    st.info("Please fetch stock data using the sidebar.")
+
+# docker run -p 8501:8501 -e GOOGLE_API_KEY="your_actual_api_key" streamlit-stock-analysis
+
+if st.sidebar.button("Test yfinance API"):
+    test_tickers = ["AAPL", "MSFT", "GOOG"]  # Test multiple reliable tickers
+    for test_ticker in test_tickers:
+        try:
+            # Test with shorter timeframe first
+            test_data = fetch_with_retry(
+                test_ticker,
+                start_date=datetime.today() - timedelta(days=5),
+                end_date=datetime.today(),
+                interval="1d"
+            )
+            
+            if not test_data.empty:
+                st.sidebar.success(f"✅ {test_ticker}: Successfully fetched {len(test_data)} rows")
+                log_debug(f"Test Data for {test_ticker}", test_data)
+                
+                # Verify data quality
+                missing_data = test_data.isnull().sum()
+                if missing_data.sum() > 0:
+                    st.sidebar.warning(f"⚠️ {test_ticker}: Contains some missing values:\n{missing_data}")
+            else:
+                st.sidebar.error(f"❌ {test_ticker}: No data received")
+                
+        except Exception as e:
             with col1:
                 try:
                     latest_data = data.iloc[-1]
