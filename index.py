@@ -665,7 +665,8 @@ else:
 
 if st.sidebar.button("Test yfinance API"):
     ticker_symbol = "AAPL"
-    period_val = "1d"
+    period_val = "1mo"
+    interval_val = "1d"
     try:
         test_data = yf.download("AAPL", period="1mo", interval="1d")
 
