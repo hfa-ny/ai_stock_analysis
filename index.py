@@ -307,7 +307,8 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
         except Exception as e:
             return {}
 
-    def analyze_ticker(ticker, data, indicators):
+    def analyze_ticker(ticker, data, indicators, timeframe):
+        """Add timeframe parameter to adjust chart display"""
         try:
             if data.isna().any().any():
                 data = data.dropna()
@@ -330,7 +331,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 high=data['High'],
                 low=data['Low'],
                 close=data['Close'],
-                name="Price",
+                name=f"Price ({timeframe})",  # Add timeframe to name
                 increasing_line_color='#26A69A',
                 decreasing_line_color='#EF5350'
             )
@@ -375,13 +376,27 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             for ind in indicators:
                 add_indicator(ind)
             fig.update_layout(
-                title=f"{ticker} Stock Price",
+                title=f"{ticker} Stock Price ({timeframe})",
                 yaxis_title="Price",
                 xaxis_title="Date",
-                xaxis_rangeslider_visible=False,
                 template="plotly_white",
                 height=600
             )
+            if timeframe in ["1min", "5min", "15min", "30min"]:
+                fig.update_xaxes(
+                    rangeslider_visible=False,
+                    rangebreaks=[
+                        dict(bounds=["sat", "mon"]),  # hide weekends
+                        dict(bounds=[20, 4], pattern="hour"),  # hide non-trading hours
+                    ]
+                )
+            elif timeframe in ["1hour", "2hour", "4hour"]:
+                fig.update_xaxes(
+                    rangeslider_visible=False,
+                    rangebreaks=[
+                        dict(bounds=["sat", "mon"]),  # hide weekends
+                    ]
+                )
             latest_data = data.iloc[-1]
             latest_open = safe_format_price(latest_data['Open'])
             latest_close = safe_format_price(latest_data['Close'])
@@ -454,7 +469,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
         if data.empty:
             st.error(f"No valid data for {ticker} after conversion")
             continue
-        fig, result = analyze_ticker(ticker, data, indicators)
+        fig, result = analyze_ticker(ticker, data, indicators, selected_time_frame)
         overall_results.append({"Stock": ticker, "Recommendation": result.get("action", "N/A")})
         fig_results[ticker] = (fig, result)
     tab_names = ["Overall Summary"] + list(st.session_state["stock_data"].keys())
