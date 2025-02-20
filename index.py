@@ -1,88 +1,19 @@
-# Configure Streamlit page - must be the first Streamlit command
-import streamlit as st
-st.set_page_config(layout="wide", initial_sidebar_state="expanded")
+## Gemini AI-Powered Stocks Technical Analysis
 
-# Rest of the imports
-import yfinance as yf
-import pandas as pd
-import plotly.graph_objects as go
-import tempfile
-import os
-import json
-from datetime import datetime, timedelta
+# Libraries - Importing necessary Python libraries
+import streamlit as st  # Streamlit for creating the web application interface
+import google.generativeai as genai
+import yfinance as yf  # yfinance to download historical stock market data from Yahoo Finance
+import pandas as pd  # pandas for data manipulation and analysis (DataFrames)
+import plotly.graph_objects as go  # plotly for creating interactive charts, specifically candlestick charts
+import tempfile  # tempfile for creating temporary files (used to save chart images)
+import os  # os for interacting with the operating system (e.g., deleting temporary files)
+import json  # json for working with JSON data (expected response format from Gemini)
+from datetime import datetime, timedelta  # datetime and timedelta for date and time calculations
 import time
 from concurrent.futures import ThreadPoolExecutor
 import pandas_market_calendars as mcal
 import requests.exceptions
-import requests
-import google.generativeai as genai
-
-# Add this helper function at the top of the file, after imports
-def safe_format_price(value):
-    """Safely format price values from Series"""
-    try:
-        if pd.isna(value):
-            return "N/A"
-        return f"${float(value):.2f}"
-    except (ValueError, TypeError):
-        return "N/A"
-
-# After imports, add debug logging
-def log_debug(title, data):
-    """Debug logging function (currently disabled)"""
-    # Commented out debug statements
-    # st.sidebar.markdown(f"**Debug: {title}**")
-    # if isinstance(data, pd.DataFrame):
-    #     st.sidebar.write(f"Shape: {data.shape}")
-    #     st.sidebar.write("First few rows:")
-    #     st.sidebar.write(data.head())
-    # else:
-    #     st.sidebar.write(data)
-    pass
-
-# Add this function after the imports
-def test_yfinance_connection():
-    """Basic test of yfinance functionality"""
-    try:
-        # Test with a simple, direct yfinance call
-        ticker = yf.Ticker("AAPL")
-        end = datetime.now()
-        start = end - timedelta(days=5)
-        
-        # Try to get just daily data for 5 days
-        hist = ticker.history(
-            start=start,
-            end=end,
-            interval='1d',
-            auto_adjust=False,
-            repair=True
-        )
-        
-        if (hist.empty):
-            return False, "No data returned from yfinance"
-        
-        required_cols = ['Open', 'High', 'Low', 'Close', 'Volume']
-        if not all(col in hist.columns for col in required_cols):
-            return False, f"Missing columns. Found: {list(hist.columns)}"
-            
-        return True, hist
-    except Exception as e:
-        return False, f"Error: {str(e)}"
-
-# Add at the top with other imports
-def test_yahoo_connection():
-    """Test direct connection to Yahoo Finance"""
-    url = "https://query1.finance.yahoo.com/v8/finance/chart/AAPL?range=1d&interval=1d"
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-    }
-    try:
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            return True, "Connection successful"
-        return False, f"Connection failed with status code: {response.status_code}"
-    except Exception as e:
-        return False, f"Connection error: {str(e)}"
 
 # Configure the API key - Use Streamlit secrets or environment variables for security
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
@@ -90,6 +21,9 @@ genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 # Select the Gemini model - using 'gemini-2.0-flash' as a general-purpose model
 MODEL_NAME = 'gemini-2.0-flash'
 gen_model = genai.GenerativeModel(MODEL_NAME)
+
+# Update the page config and title section
+st.set_page_config(layout="wide", initial_sidebar_state="expanded")
 
 # Add custom CSS to fix header spacing
 st.markdown("""
@@ -131,19 +65,6 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# Add at the top of the file, after imports
-RECOMMENDATION_COLORS = {
-    "Strong Buy": "rgba(0, 128, 0, 0.7)",      # Semi-transparent green
-    "Buy": "rgba(144, 238, 144, 0.7)",         # Semi-transparent lightgreen
-    "Weak Buy": "rgba(152, 251, 152, 0.7)",    # Semi-transparent palegreen
-    "Hold": "rgba(255, 255, 0, 0.7)",          # Semi-transparent yellow
-    "Weak Sell": "rgba(255, 192, 203, 0.7)",   # Semi-transparent pink
-    "Sell": "rgba(240, 128, 128, 0.7)",        # Semi-transparent lightcoral
-    "Strong Sell": "rgba(255, 0, 0, 0.7)",     # Semi-transparent red
-    "Error": "rgba(128, 128, 128, 0.7)",       # Semi-transparent gray
-    "N/A": "rgba(128, 128, 128, 0.7)"          # Semi-transparent gray
-}
-
 st.title("HFA AI-Powered Technical Stock Analysis")
 st.sidebar.header("Configuration")
 
@@ -158,18 +79,18 @@ start_date = st.sidebar.date_input("Start Date", value=start_date_default)
 end_date = st.sidebar.date_input("End Date", value=end_date_default)
 
 # --- New: Time Frame Selection ---
-# Update the time frame options with more conservative settings
+# Update the time frame options with only supported intervals
 time_frame_options = {
-    "1day": {"interval": "1d", "days": 365, "max_points": None},
-    "5day": {"interval": "5d", "days": 365, "max_points": None},
-    "1week": {"interval": "1wk", "days": 730, "max_points": None},
-    "1month": {"interval": "1mo", "days": 1825, "max_points": None},
-    "3month": {"interval": "3mo", "days": 1825, "max_points": None}
+    "5min": {"interval": "5m", "days": 10, "max_points": None},
+    "15min": {"interval": "15m", "days": 30, "max_points": None},
+    "1hour": {"interval": "60m", "days": 90, "max_points": None},
+    "day": {"interval": "1d", "days": 730, "max_points": None},
+    "week": {"interval": "1wk", "days": 730, "max_points": None}
 }
 
 # Add warning for intraday data limitations
 def show_timeframe_warning(selected_timeframe):
-    if (selected_timeframe in ["5min", "15min"]):
+    if selected_timeframe in ["5min", "15min"]:
         st.sidebar.warning(f"""
         ⚠️ Important Note for {selected_timeframe} timeframe:
         - Limited to last {time_frame_options[selected_timeframe]['days']} days only
@@ -177,11 +98,11 @@ def show_timeframe_warning(selected_timeframe):
         - May not work outside market hours
         """)
 
-# Update the sidebar selection with new timeframes
+# Update the sidebar selection
 selected_time_frame = st.sidebar.selectbox(
     "Select Time Frame",
     list(time_frame_options.keys()),
-    index=list(time_frame_options.keys()).index("1day") 
+    index=list(time_frame_options.keys()).index("day")
 )
 show_timeframe_warning(selected_time_frame)
 
@@ -194,49 +115,13 @@ indicators = st.sidebar.multiselect(
     default=["20-Day SMA"]
 )
 
-def fetch_yahoo_finance_data(ticker, start_date, end_date):
-    """Backup method to fetch data directly from Yahoo Finance API"""
-    try:
-        # Convert dates to UNIX timestamps
-        start_timestamp = int(pd.Timestamp(start_date).timestamp())
-        end_timestamp = int(pd.Timestamp(end_date).timestamp())
-        
-        # Construct the URL
-        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?period1={start_timestamp}&period2={end_timestamp}&interval=1d"
-        
-        # Add headers to mimic a browser request
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        }
-        
-        # Make the request
-        response = requests.get(url, headers=headers)
-        data = response.json()
-        
-        # Extract price data
-        timestamps = data['chart']['result'][0]['timestamp']
-        quote = data['chart']['result'][0]['indicators']['quote'][0]
-        
-        # Create DataFrame
-        df = pd.DataFrame({
-            'Open': quote['open'],
-            'High': quote['high'],
-            'Low': quote['low'],
-            'Close': quote['close'],
-            'Volume': quote['volume']
-        }, index=pd.to_datetime(timestamps, unit='s'))
-        
-        return df
-    except Exception as e:
-        st.sidebar.error(f"Backup data fetch failed: {str(e)}")
-        return pd.DataFrame()
-
-# Update the fetch_with_retry function
 def fetch_with_retry(ticker, start_date, end_date, interval, max_retries=3, delay=2):
     """Fetch stock data with retry logic"""
     for attempt in range(max_retries):
         try:
-            # Try yfinance download first
+            # Force session reset on retry
+            yf.Ticker(ticker).history = None
+
             data = yf.download(
                 ticker,
                 start=start_date,
@@ -244,92 +129,29 @@ def fetch_with_retry(ticker, start_date, end_date, interval, max_retries=3, dela
                 interval=interval,
                 prepost=False,
                 progress=False,
-                repair=True,
-                ignore_tz=True,
                 timeout=20
             )
-            
+
             if not data.empty:
                 return data
-                
-            # If first method fails, try Ticker object
-            stock = yf.Ticker(ticker)
-            data = stock.history(
-                start=start_date,
-                end=end_date,
-                interval=interval,
-                repair=True
-            )
-            
-            if not data.empty:
-                return data
-                
-            # If both methods fail, try the backup method
-            backup_data = fetch_yahoo_finance_data(ticker, start_date, end_date)
-            if not backup_data.empty:
-                return backup_data
-            
-            if attempt < max_retries - 1:
-                # st.sidebar.warning(f"Attempt {attempt + 1} failed for {ticker}, retrying...")  # Commented out debug message
-                time.sleep(delay * (attempt + 1))
-            
-        except Exception as e:
+
+        except (requests.exceptions.RequestException, ValueError, json.JSONDecodeError) as e:
             if attempt == max_retries - 1:
-                # st.sidebar.error(f"Failed to fetch {ticker} after all attempts: {str(e)}")  # Commented out debug message
-                # Try one last time with minimal parameters
-                try:
-                    data = yf.download(ticker, period="1mo", progress=False)
-                    if not data.empty:
-                        return data
-                except:
-                    pass
-                raise Exception(f"All fetch attempts failed for {ticker}")
-            # st.sidebar.warning(f"Attempt {attempt + 1} failed: {str(e)}, retrying...")  # Commented out debug message
-            time.sleep(delay * (attempt + 1))
-    
-    return pd.DataFrame()
+                raise Exception(f"Failed to fetch data after {max_retries} attempts: {str(e)}")
+            time.sleep(delay * (attempt + 1))  # Exponential backoff
 
-# Add at the top after imports and before page config
-def initialize_session_state():
-    """Initialize or reset session state variables"""
-    if 'debug_mode' not in st.session_state:
-        st.session_state.debug_mode = False
-    if 'last_fetch_time' not in st.session_state:
-        st.session_state.last_fetch_time = None
-    if 'fetch_attempts' not in st.session_state:
-        st.session_state.fetch_attempts = {}
+    return pd.DataFrame()  # Return empty DataFrame if all retries failed
 
-# Comment out debug options in sidebar
-# st.sidebar.header("Debug Options")
-# st.session_state.debug_mode = st.sidebar.checkbox("Enable Debug Mode", value=False)
-
-# if st.session_state.debug_mode:
-#     st.sidebar.markdown("### Session State Debug")
-#     st.sidebar.write("Last fetch time:", st.session_state.get('last_fetch_time'))
-#     st.sidebar.write("Fetch attempts:", st.session_state.get('fetch_attempts'))
-#     if 'stock_data' in st.session_state:
-#         for ticker, data in st.session_state['stock_data'].items():
-#             st.sidebar.markdown(f"**{ticker} Data Shape:** {data.shape}")
-
-# In the "Fetch Data" button click handler, add logging
+# Modify the data fetching part
 if st.sidebar.button("Fetch Data"):
     stock_data = {}
     failed_tickers = []
-    
+
     for ticker in tickers:
         try:
             # Calculate appropriate start date based on selected timeframe
             max_days = time_frame_options[selected_time_frame]["days"]
             interval = time_frame_options[selected_time_frame]["interval"]
-
-            # Commented out debug logging
-            # log_debug("Fetch Parameters", {
-            #     "ticker": ticker,
-            #     "interval": interval,
-            #     "max_days": max_days,
-            #     "start_date": start_date,
-            #     "end_date": end_date
-            # })
 
             # Adjust start date based on timeframe
             adjusted_start_date = datetime.today() - timedelta(days=max_days)
@@ -343,8 +165,6 @@ if st.sidebar.button("Fetch Data"):
                 end_date=end_date,
                 interval=interval
             )
-            
-            # log_debug(f"Fetched Data for {ticker}", data)  # Commented out debug logging
 
             if not data.empty:
                 stock_data[ticker] = data
@@ -359,7 +179,6 @@ if st.sidebar.button("Fetch Data"):
 
     if stock_data:
         st.session_state["stock_data"] = stock_data
-        # log_debug("Session State Data", stock_data)  # Commented out debug logging
         st.success(f"Stock data loaded successfully for {len(stock_data)} ticker(s)")
         if failed_tickers:
             st.warning(f"Failed to fetch data for: {', '.join(failed_tickers)}")
@@ -381,19 +200,9 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
     def get_financial_metrics(ticker_symbol):
         """Get key financial metrics for a stock"""
         try:
-            # Skip detailed metrics for index symbols
-            if (ticker_symbol.startswith('^')):
-                return {
-                    "Type": "Market Index",
-                    "Note": "Detailed metrics not available for indices"
-                }
-            
-            # Add delay between API calls
-            time.sleep(2)  # Wait 2 seconds between requests
-            
             ticker = yf.Ticker(ticker_symbol)
             info = ticker.info
-            
+
             # Key financial metrics to display
             metrics = {
                 "Market Cap": info.get('marketCap', 'N/A'),
@@ -407,7 +216,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 "50 Day MA": info.get('fiftyDayAverage', 'N/A'),
                 "200 Day MA": info.get('twoHundredDayAverage', 'N/A'),
             }
-            
+
             # Format numerical values
             for key, value in metrics.items():
                 if isinstance(value, (int, float)):
@@ -417,56 +226,130 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                         metrics[key] = f"{value:.2%}"
                     else:
                         metrics[key] = f"{value:.2f}"
-                        
+
             return metrics
         except Exception as e:
-            # st.warning(f"Error fetching financial data for {ticker_symbol}: {str(e)}")  # Commented out debug message
+            st.warning(f"Error fetching financial data for {ticker_symbol}: {str(e)}")
             return {}
 
     # Define a function to build chart, call the Gemini API and return structured result
-    def analyze_ticker(ticker, data, indicators):
+    def analyze_ticker(ticker, data, indicators): # **Pass 'indicators' as argument**
         try:
-            # Initial data validation
-            if data.isna().any().any():
-                data = data.dropna()
-            
-            if data.empty:
-                raise ValueError(f"No data available for {ticker}")
-            
-            # Ensure numeric data types
-            numeric_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
-            for col in numeric_columns:
-                if col in data.columns:
-                    if not pd.api.types.is_numeric_dtype(data[col]):
-                        data[col] = pd.to_numeric(data[col].astype(str), errors='coerce')
-            
-            # Drop any NaN values after conversion
-            data = data.dropna(subset=numeric_columns)
-                    
-            # Convert index to datetime if not already
-            if not isinstance(data.index, pd.DatetimeIndex):
-                data.index = pd.to_datetime(data.index)
-            
-            # Sort data by date and remove duplicates
-            data = data.sort_index().loc[~data.index.duplicated(keep='first')]
-            
-            if data.empty:
-                raise ValueError(f"No valid numeric data available for {ticker} after cleaning")
+            # Get the max points limit and interval for the selected timeframe
+            timeframe_info = time_frame_options[selected_time_frame]
+            max_points = timeframe_info["max_points"]
+            interval = timeframe_info["interval"]
 
-            # Create the candlestick chart
-            candlestick = go.Candlestick(
-                x=data.index,
-                open=data['Open'],
-                high=data['High'],
-                low=data['Low'],
-                close=data['Close'],
-                name="Price",
-                increasing_line_color='#26A69A',
-                decreasing_line_color='#EF5350'
+            if data.empty:
+                st.warning(f"No data available for {ticker} with {interval} interval")
+                empty_fig = go.Figure()
+                empty_fig.add_annotation(
+                    text="No data available for selected timeframe",
+                    xref="paper", yref="paper",
+                    x=0.5, y=0.5, showarrow=False
+                )
+                return empty_fig, {"action": "Error", "justification": "No data available for selected timeframe"}
+
+            # Clean and downsample the data if needed
+            data = data.dropna()
+            if max_points:
+                original_length = len(data)
+                data = downsample_data(data, max_points)
+                if len(data) < original_length:
+                    st.info(f"Data has been downsampled from {original_length} to {len(data)} points for better performance")
+
+            # Debug information - Removed for cleaner UI, keep for debugging if needed
+            # st.write(f"### Data Information for {ticker}:")
+            # st.write(f"Total rows after processing: {len(data)}")
+
+            # Check if data is empty or invalid
+            if data.empty:
+                st.warning(f"No data found for {ticker}.")
+                # Return empty figure and error message
+                empty_fig = go.Figure()
+                empty_fig.add_annotation(
+                    text="No data available",
+                    xref="paper", yref="paper",
+                    x=0.5, y=0.5, showarrow=False
+                )
+                return empty_fig, {"action": "Error", "justification": "No data fetched from yfinance"}
+
+            # Add this before creating the chart
+            if selected_time_frame in ["5min", "15min", "1hour"]:
+                # Remove data points with no volume
+                data = data[data['Volume'] > 0]
+
+                # Remove outliers
+                Q1 = data['Close'].quantile(0.25)
+                Q3 = data['Close'].quantile(0.75)
+                IQR = Q3 - Q1
+                lower_bound = Q1 - 1.5 * IQR
+                upper_bound = Q3 + 1.5 * IQR
+
+                # Filter out extreme values
+                data = data[
+                    (data['Close'] >= lower_bound) &
+                    (data['Close'] <= upper_bound)
+                ]
+
+                # Forward fill small gaps (only for remaining data)
+                data = data.fillna(method='ffill', limit=3)
+
+                # Remove any remaining NaN values
+                data = data.dropna()
+
+            # Build candlestick chart with logarithmic scale
+            fig = go.Figure(data=[
+                go.Candlestick(
+                    x=data.index,
+                    open=data['Open'],
+                    high=data['High'],
+                    low=data['Low'],
+                    close=data['Close'],
+                    name="Price",
+                    increasing_line_color='#26A69A',
+                    decreasing_line_color='#EF5350'
+                )
+            ])
+
+            # Update layout with logarithmic scale for small timeframes
+            fig.update_layout(
+                title=f"{ticker} Stock Price",
+                yaxis_title="Price (log scale)",
+                xaxis_title="Date",
+                yaxis_type="log" if selected_time_frame in ["5min", "15min", "1hour"] else "linear",
+                xaxis_rangeslider_visible=False,
+                template="plotly_white",
+                height=600,
+                yaxis=dict(
+                    gridcolor="rgba(128, 128, 128, 0.2)",
+                    zerolinecolor="rgba(128, 128, 128, 0.2)",
+                    tickformat=".2f",  # Show 2 decimal places
+                    showgrid=True,
+                    showline=True
+                ),
+                xaxis=dict(
+                    gridcolor="rgba(128, 128, 128, 0.2)",
+                    rangeslider=dict(visible=False),
+                    showgrid=True,
+                    showline=True,
+                    type='date'
+                ),
+                plot_bgcolor='white',
+                paper_bgcolor='white',
+                margin=dict(l=50, r=50, t=50, b=50),
+                showlegend=True
             )
-            
-            fig = go.Figure(data=[candlestick])
-            
+
+            # For intraday data, add specific configurations
+            if selected_time_frame in ["5min", "15min", "1hour"]:
+                fig.update_xaxes(
+                    rangebreaks=[
+                        dict(bounds=["sat", "mon"]),  # Hide weekends
+                        dict(bounds=[20, 4], pattern="hour"),  # Hide non-trading hours
+                    ]
+                )
+
             # Add selected technical indicators
             def add_indicator(indicator):
                 try:
@@ -494,11 +377,18 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                         loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
                         rs = gain / loss
                         rsi = 100 - (100 / (1 + rs))
-                        
+
+                        # Add RSI subplot
                         fig.add_trace(
-                            go.Scatter(x=data.index, y=rsi, name='RSI', yaxis="y2")
+                            go.Scatter(
+                                x=data.index,
+                                y=rsi,
+                                name='RSI',
+                                yaxis="y2"
+                            )
                         )
-                        
+
+                        # Update layout to include RSI subplot
                         fig.update_layout(
                             yaxis2=dict(
                                 title="RSI",
@@ -506,14 +396,44 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                                 side="right",
                                 range=[0, 100],
                                 showgrid=False
-                            )
+                            ),
+                            # Add RSI level lines
+                            shapes=[
+                                # Overbought line (70)
+                                dict(
+                                    type="line",
+                                    xref="paper",
+                                    x0=0,
+                                    x1=1,
+                                    y0=70,
+                                    y1=70,
+                                    yref="y2",
+                                    line=dict(
+                                        color="red",
+                                        width=1,
+                                        dash="dash"
+                                    )
+                                ),
+                                # Oversold line (30)
+                                dict(
+                                    type="line",
+                                    xref="paper",
+                                    x0=0,
+                                    x1=1,
+                                    y0=30,
+                                    y1=30,
+                                    yref="y2",
+                                    line=dict(
+                                        color="green",
+                                        width=1,
+                                        dash="dash"
+                                    )
+                                )
+                            ]
                         )
-                except Exception as e:
-                    pass  # Commented out: st.warning(f"Error adding indicator {indicator}: {str(e)}")
 
-            # Add indicators
-            for ind in indicators:
-                add_indicator(ind)
+                except Exception as e:
+                    st.warning(f"Error adding indicator {indicator}: {str(e)}")
 
             # Update layout
             fig.update_layout(
@@ -521,30 +441,42 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 yaxis_title="Price",
                 xaxis_title="Date",
                 xaxis_rangeslider_visible=False,
-                template="plotly_white",
-                height=600
+                xaxis_rangeselector=dict(  # Add range selector for better navigation
+                    buttons=list([
+                        dict(count=1, label="1D", step="day", stepmode="backward"),
+                        dict(count=5, label="5D", step="day", stepmode="backward"),
+                        dict(count=1, label="1M", step="month", stepmode="backward"),
+                        dict(count=3, label="3M", step="month", stepmode="backward"),
+                        dict(count=6, label="6M", step="month", stepmode="backward"),
+                        dict(count=1, label="1Y", step="year", stepmode="backward"),
+                        dict(step="all")
+                    ])
+                )
             )
 
-            # Rest of analyze_ticker function remains the same...
+            # Add indicators
+            for ind in indicators: # **'indicators' is now passed as argument**
+                add_indicator(ind)
 
             # Update the chart title and layout in analyze_ticker function
-            # Get latest prices and use safe formatting
+            # Get latest prices
             latest_data = data.iloc[-1]
-            latest_open = safe_format_price(latest_data['Open'])
-            latest_close = safe_format_price(latest_data['Close'])
-            
-            # Update layout with safely formatted values
+            latest_open = f"${latest_data['Open']:.2f}"
+            latest_close = f"${latest_data['Close']:.2f}"
+
+            # Update layout with more margin and enhanced title
             fig.update_layout(
                 title=dict(
                     text=f"{ticker} Stock Price (Open: {latest_open} Close: {latest_close})",
-                    y=0.95,
+                    y=0.95,  # Move title up
                     x=0.5,
                     xanchor='center',
                     yanchor='top',
-                    pad=dict(b=20),
-                    font=dict(size=12)
+                    pad=dict(b=20),  # Add bottom padding
+                    font=dict(size=12)  # Set font size to be smaller
                 ),
-                margin=dict(t=80, b=50, l=50, r=50)
+                margin=dict(t=80, b=50, l=50, r=50),  # Increase top margin
+                # ...rest of your layout settings...
             )
 
             # Save chart as temporary PNG file and read image bytes
@@ -597,8 +529,8 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             return fig, result
 
         except Exception as e:
-            # st.error(f"Error analyzing {ticker}: {str(e)}")  # Commented out error message
-            # st.error(f"Analysis error details: {str(e)}")    # Commented out error details
+            st.error(f"Error analyzing {ticker}: {str(e)}")
+            st.error(f"Analysis error details: {e}")
             empty_fig = go.Figure()
             empty_fig.add_annotation(
                 text=f"Error during analysis: {str(e)}",
@@ -611,27 +543,9 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
     overall_results = []
     fig_results = {}
 
-    # In the chart display section, add debug logging and ensure data is passed correctly
     # First loop to collect all analyses
     for ticker in st.session_state["stock_data"]:
         data = st.session_state["stock_data"][ticker]
-        # log_debug(f"Pre-analysis data for {ticker}", data)  # Commented out debug logging
-        
-        # Create a copy of the data to avoid modifying the original
-        data = data.copy()
-        
-        # Convert data to numeric if needed
-        for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
-            if col in data.columns:
-                data[col] = pd.to_numeric(data[col].astype(str), errors='coerce')
-        
-        # Verify data after conversion
-        # log_debug(f"Post-conversion data for {ticker}", data)  # Commented out debug logging
-        
-        if data.empty:
-            st.error(f"No valid data for {ticker} after conversion")
-            continue
-            
         fig, result = analyze_ticker(ticker, data, indicators)
         overall_results.append({"Stock": ticker, "Recommendation": result.get("action", "N/A")})
         fig_results[ticker] = (fig, result)
@@ -642,158 +556,93 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
 
     # Display Overall Summary tab
     with tabs[0]:
-        st.markdown("## Market Overview")
-        
-        st.markdown("""
-            <style>
-            .market-summary {
-                background: white;
-                border-radius: 8px;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                margin: 1.5rem 0;
-                padding: 1rem;
-            }
-            .market-table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-bottom: 1rem;
-            }
-            .market-table th, .market-table td {
-                padding: 12px 16px;
-                text-align: left;
-                border-bottom: 1px solid #e5e7eb;
-            }
-            .market-table th {
-                background: #f8f9fa;
-                font-weight: 600;
-                color: #374151;
-                white-space: nowrap;
-            }
-            .market-table td {
-                vertical-align: middle;
-            }
-            .market-table tr:last-child td {
-                border-bottom: none;
-            }
-            .market-table tr:hover {
-                background: #f9fafb;
-            }
-            .market-symbol {
-                font-weight: 600;
-                color: #111827;
-            }
-            .market-price {
-                color: #4b5563;
-            }
-            .market-rec {
-                display: inline-block;
-                padding: 6px 12px;
-                border-radius: 6px;
-                font-weight: 500;
-                text-align: center;
-                min-width: 100px;
-                border: 1px solid rgba(0,0,0,0.1);
-            }
-            .section-spacer {
-                margin: 2.5rem 0;
-                border-top: 1px solid #e5e7eb;
-            }
-            .historical-header {
-                margin: 2rem 0 1rem 0;
-                color: #111827;
-            }
-            .historical-desc {
-                color: #6b7280;
-                font-size: 0.9em;
-                margin-bottom: 1.5rem;
-            }
-            </style>
-            
-            <div class="market-summary">
-                <table class="market-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 20%;">Symbol</th>
-                            <th style="width: 45%;">Latest Prices</th>
-                            <th style="width: 35%; text-align: center;">AI Recommendation</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-        """, unsafe_allow_html=True)
-        
-        for ticker in st.session_state["stock_data"]:
-            data = st.session_state["stock_data"][ticker]
-            latest_data = data.iloc[-1]
-            recommendation = next((item["Recommendation"] for item in overall_results if item["Stock"] == ticker), "N/A")
-            color = RECOMMENDATION_COLORS.get(recommendation, "rgba(128, 128, 128, 0.7)")
-            
-            st.markdown(f"""
-                <tr>
-                    <td><span class="market-symbol">{ticker}</span></td>
-                    <td class="market-price">Open: {safe_format_price(latest_data['Open'])} · Close: {safe_format_price(latest_data['Close'])}</td>
-                    <td style="text-align: center;"><span class="market-rec" style="background-color: {color}">{recommendation}</span></td>
-                </tr>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("""
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="section-spacer"></div>
-        <h2 class="historical-header">Historical Price Data</h2>
-        <p class="historical-desc">
-            Expand each symbol below to view detailed historical data and performance metrics.
-            Data includes full price history and calculated statistics for the selected time period.
-        </p>
-        """, unsafe_allow_html=True)
+        st.subheader("Overall Structured Recommendations")
+        df_summary = pd.DataFrame(overall_results)
+
+        # Create styled HTML table with colored recommendations
+        recommendation_colors = {
+            "Strong Buy": "green",
+            "Buy": "lightgreen",
+            "Weak Buy": "palegreen",
+            "Hold": "yellow",
+            "Weak Sell": "pink",
+            "Sell": "lightcoral",
+            "Strong Sell": "red"
+        }
+
+        # Create compact HTML without extra whitespace or newlines
+        html_table = '<style>.summary-table{width:100%;border-collapse:collapse;margin:10px 0;font-size:0.9em;}.summary-table th,.summary-table td{padding:8px;text-align:left;border:1px solid #ddd;}.summary-table th{background-color:#f8f9fa;font-weight:bold;}.recommendation-cell{padding:5px 10px;border-radius:4px;color:black;text-align:center;}</style><table class="summary-table"><tr><th>Stock</th><th>Recommendation</th></tr>'
+
+        # Add rows without extra formatting
+        for _, row in df_summary.iterrows():
+            color = recommendation_colors.get(row['Recommendation'], 'gray')
+            html_table += f'<tr><td>{row["Stock"]}</td><td><div class="recommendation-cell" style="background-color:{color}">{row["Recommendation"]}</div></td></tr>'
+
+        html_table += '</table>'
+        st.markdown(html_table, unsafe_allow_html=True)
+
+        # Display all stocks' data in Overall Summary
+        st.subheader("Raw Data for All Stocks")
+        for stock, stock_data in st.session_state["stock_data"].items():
+            with st.expander(f"Raw Data for {stock} ({selected_time_frame})"):
+                st.dataframe(stock_data)
 
     # Display individual stock tabs section
     for i, ticker in enumerate(st.session_state["stock_data"]):
         with tabs[i + 1]:
-            # Get the data and ensure it's properly converted
-            data = st.session_state["stock_data"][ticker].copy()
-            
-            # Ensure numeric types before displaying
-            numeric_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
-            for col in numeric_columns:
-                if col in data.columns:
-                    try:
-                        data[col] = pd.to_numeric(data[col].astype(str), errors='coerce')
-                    except Exception as e:
-                        pass  # Commented out: st.warning(f"Warning: Could not convert {col} column to numeric: {str(e)})
-            
             fig, result = fig_results[ticker]
-            
+            current_data = st.session_state["stock_data"][ticker]  # Get current stock's data
+
             # First row: Title and Recommendation
             col1, col2 = st.columns([3, 2])
             with col1:
-                try:
-                    latest_data = data.iloc[-1]
-                    open_price = safe_format_price(latest_data.get('Open'))
-                    close_price = safe_format_price(latest_data.get('Close'))
-                    
-                    # Get the recommendation and use the global color mapping
-                    recommendation = result.get("action", "N/A")
-                    rec_color = RECOMMENDATION_COLORS.get(recommendation, "rgba(128, 128, 128, 0.7)")
-                    
-                    st.markdown(f"""
-                        <h3 style='margin-bottom: 0px;'>
-                            Analysis for {ticker}
-                            <span style='font-size: 0.8em; font-weight: normal; color: #666;'>
-                                (Open: {open_price} Close: {close_price})
-                            </span>
-                            <span style='font-size: 0.8em; margin-left: 10px; padding: 2px 8px; border-radius: 4px; 
-                                background-color: {rec_color}; color: black; border: 1px solid rgba(0,0,0,0.1); 
-                                font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.1);'>
-                                {recommendation}
-                            </span>
-                        </h3>
+                latest_data = current_data.iloc[-1]  # Use current stock's data
+
+                # --- Explicitly convert Open and Close to numeric (float) and handle potential NaN ---
+                latest_open_price = pd.to_numeric(latest_data['Open'], errors='coerce')
+                latest_close_price = pd.to_numeric(latest_data['Close'], errors='coerce')
+
+                # --- Debugging: Check for NaN after conversion ---
+                if pd.isna(latest_open_price) or pd.isna(latest_close_price):
+                    st.error(f"Error: Open or Close price is NaN after conversion for {ticker}!")
+                    st.write("Raw latest_data Series:")
+                    st.dataframe(latest_data) # Use st.dataframe to display Series better
+                else:
+                    st.write("Open and Close prices converted to numeric successfully.") # Debug message
+
+                # Use the converted numeric values in the f-string formatting
+                st.markdown(f"""
+                    <h3 style='margin-bottom: 0px;'>
+                        Analysis for {ticker}
+                        <span style='font-size: 0.8em; font-weight: normal; color: #666;'>
+                            (Open: ${latest_open_price:.2f} Close: ${latest_close_price:.2f})
+                        </span>
+                    </h3>
+                """, unsafe_allow_html=True)
+            with col2:
+                recommendation = result.get("action", "N/A")
+                # Color-code the recommendation
+                color = {
+                    "Strong Buy": "green",
+                    "Buy": "lightgreen",
+                    "Weak Buy": "palegreen",
+                    "Hold": "yellow",
+                    "Weak Sell": "pink",
+                    "Sell": "lightcoral",
+                    "Strong Sell": "red"
+                }.get(recommendation, "gray")
+
+                st.markdown(f"""
+                    <div style='
+                        background-color: {color};
+                        padding: 10px;
+                        border-radius: 5px;
+                        text-align: center;
+                        margin-top: 20px;
+                    '>
+                        <strong>Recommendation: {recommendation}</strong>
+                    </div>
                     """, unsafe_allow_html=True)
-                except Exception as e:
-                    pass
-                    
-            # ... rest of the tab display code remains the same ...
 
             # Second row: Financial Metrics
             metrics = get_financial_metrics(ticker)
@@ -831,20 +680,20 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                         }
                     </style>
                 """, unsafe_allow_html=True)
-                
+
                 # Create the metrics HTML without extra newlines
                 metrics_html = '<div class="metrics-grid">'
                 for key, value in metrics.items():
                     metrics_html += f'<div class="metric-box"><div class="metric-label">{key}</div><div class="metric-value">{value}</div></div>'
                 metrics_html += '</div>'
-                
+
                 st.markdown(metrics_html, unsafe_allow_html=True)
-            
+
             # Third row: Chart and Analysis
             st.plotly_chart(fig, key=f"plotly_chart_{ticker}")
             st.write("**Detailed Justification:**")
             st.write(result.get("justification", "No justification provided."))
-            
+
             # Show only current stock's data in its tab
             with st.expander(f"Raw Data for {ticker} ({selected_time_frame})"):
                 st.dataframe(data)
@@ -852,46 +701,26 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
 else:
     st.info("Please fetch stock data using the sidebar.")
 
-# Comment out debug testing buttons at the bottom of the file
-# if st.sidebar.button("Test yfinance API"):
-#     test_tickers = ["AAPL", "MSFT", "GOOG"]  # Test multiple reliable tickers
-#     for test_ticker in test_tickers:
-#         try:
-#             # Test with shorter timeframe first
-#             test_data = fetch_with_retry(
-#                 test_ticker,
-#                 start_date=datetime.today() - timedelta(days=5),
-#                 end_date=datetime.today(),
-#                 interval="1d"
-#             )
-            
-#             if not test_data.empty:
-#                 st.sidebar.success(f"✅ {test_ticker}: Successfully fetched {len(test_data)} rows")
-#                 log_debug(f"Test Data for {test_ticker}", test_data)
-                
-#                 # Verify data quality
-#                 missing_data = test_data.isnull().sum()
-#                 if (missing_data.sum() > 0):
-#                     st.sidebar.warning(f"⚠️ {test_ticker}: Contains some missing values:\n{missing_data}")
-#             else:
-#                 st.sidebar.error(f"❌ {test_ticker}: No data received")
-                
-#         except Exception as e:
-#             st.sidebar.error(f"❌ {test_ticker}: API test failed: {str(e)}")
-    
-#     st.sidebar.info("💡 If tests fail, try another ticker or wait a few minutes before retrying.")
+# docker run -p 8501:8501 -e GOOGLE_API_KEY="your_actual_api_key" streamlit-stock-analysis
 
-# if st.sidebar.button("Basic API Test"):
-#     success, result = test_yfinance_connection()
-#     if success:
-#         st.sidebar.success("✅ Basic API test successful!")
-#         st.sidebar.dataframe(result.head())
-#     else:
-#         st.sidebar.error(f"❌ API test failed: {result}")
+if st.sidebar.button("Test yfinance API"):
+    ticker_symbol = "AAPL"  # Test with a reliable ticker
+    try:
+        # Test with retry logic
+        test_data = fetch_with_retry(
+            ticker_symbol,
+            start_date=datetime.today() - timedelta(days=30),
+            end_date=datetime.today(),
+            interval="1d"
+        )
 
-# if st.sidebar.button("Test Yahoo Connection"):
-#     success, message = test_yahoo_connection()
-#     if success:
-#         st.sidebar.success("✅ Direct Yahoo Finance connection test successful")
-#     else:
-#         st.sidebar.error(f"❌ Yahoo Finance connection test failed: {message}")
+        if not test_data.empty:
+            st.sidebar.success(f"yfinance API test successful! Fetched {len(test_data)} rows")
+            with st.expander("View Test Data"):
+                st.dataframe(test_data)
+        else:
+            st.sidebar.error("No data received from yfinance API")
+
+    except Exception as e:
+        st.sidebar.error(f"yfinance API test failed: {str(e)}")
+        st.sidebar.warning("Try clearing your browser cache or using a different ticker symbol")
