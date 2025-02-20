@@ -99,13 +99,13 @@ start_date = st.sidebar.date_input("Start Date", value=start_date_default)
 end_date = st.sidebar.date_input("End Date", value=end_date_default)
 
 # --- New: Time Frame Selection ---
-# Update the time frame options with only supported intervals
+# Update the time frame options with more conservative settings
 time_frame_options = {
-    "5min": {"interval": "5m", "days": 10, "max_points": None},
-    "15min": {"interval": "15m", "days": 30, "max_points": None},
-    "1hour": {"interval": "60m", "days": 90, "max_points": None},
-    "day": {"interval": "1d", "days": 730, "max_points": None},
-    "week": {"interval": "1wk", "days": 730, "max_points": None}
+    "1day": {"interval": "1d", "days": 365, "max_points": None},
+    "5day": {"interval": "5d", "days": 365, "max_points": None},
+    "1week": {"interval": "1wk", "days": 730, "max_points": None},
+    "1month": {"interval": "1mo", "days": 1825, "max_points": None},
+    "3month": {"interval": "3mo", "days": 1825, "max_points": None}
 }
 
 # Add warning for intraday data limitations
@@ -118,11 +118,11 @@ def show_timeframe_warning(selected_timeframe):
         - May not work outside market hours
         """)
 
-# Update the sidebar selection
+# Update the sidebar selection with new timeframes
 selected_time_frame = st.sidebar.selectbox(
     "Select Time Frame",
     list(time_frame_options.keys()),
-    index=list(time_frame_options.keys()).index("day") 
+    index=list(time_frame_options.keys()).index("1day") 
 )
 show_timeframe_warning(selected_time_frame)
 
@@ -277,8 +277,62 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             return {}
 
     # Define a function to build chart, call the Gemini API and return structured result
-    def analyze_ticker(ticker, data, indicators): # **Pass 'indicators' as argument**
+    def analyze_ticker(ticker, data, indicators):
         try:
+            # Initial data validation
+            if data is None or data.empty:
+                raise ValueError(f"No data available for {ticker}")
+                
+            # Convert index to datetime if not already
+            if not isinstance(data.index, pd.DatetimeIndex):
+                data.index = pd.to_datetime(data.index)
+                
+            # Sort data by date and remove duplicates
+            data = data.sort_index().loc[~data.index.duplicated(keep='first')]
+            
+            # Build candlestick chart with validation
+            candlestick = go.Candlestick(
+                x=data.index,
+                open=data['Open'],
+                high=data['High'],
+                low=data['Low'],
+                close=data['Close'],
+                name="Price",
+                increasing_line_color='#26A69A',
+                decreasing_line_color='#EF5350'
+            )
+            
+            fig = go.Figure(data=[candlestick])
+            
+            # Update layout with error handling
+            try:
+                latest_data = data.iloc[-1]
+                latest_open = safe_format_price(latest_data['Open'])
+                latest_close = safe_format_price(latest_data['Close'])
+                
+                title_text = f"{ticker} Stock Price"
+                if latest_open != "N/A" and latest_close != "N/A":
+                    title_text += f" (Open: {latest_open} Close: {latest_close})"
+                
+                fig.update_layout(
+                    title=dict(
+                        text=title_text,
+                        y=0.95,
+                        x=0.5,
+                        xanchor='center',
+                        yanchor='top'
+                    ),
+                    yaxis_title="Price",
+                    xaxis_title="Date",
+                    xaxis_rangeslider_visible=False,
+                    template="plotly_white",
+                    height=600
+                )
+                
+            except Exception as layout_error:
+                st.warning(f"Warning: Could not update chart layout with latest prices: {layout_error}")
+                fig.update_layout(title=f"{ticker} Stock Price")
+
             # Debug data
             st.sidebar.write(f"Debug - Data shape for {ticker}: {data.shape}")
             st.sidebar.write(f"Debug - First few rows of data:")
@@ -757,23 +811,29 @@ else:
 # docker run -p 8501:8501 -e GOOGLE_API_KEY="your_actual_api_key" streamlit-stock-analysis
 
 if st.sidebar.button("Test yfinance API"):
-    ticker_symbol = "AAPL"  # Test with a reliable ticker
-    try:
-        # Test with retry logic
-        test_data = fetch_with_retry(
-            ticker_symbol,
-            start_date=datetime.today() - timedelta(days=30),
-            end_date=datetime.today(),
-            interval="1d"
-        )
-        
-        if not test_data.empty:
-            st.sidebar.success(f"yfinance API test successful! Fetched {len(test_data)} rows")
-            with st.expander("View Test Data"):
-                st.dataframe(test_data)
-        else:
-            st.sidebar.error("No data received from yfinance API")
+    test_tickers = ["AAPL", "MSFT", "GOOG"]  # Test multiple reliable tickers
+    for test_ticker in test_tickers:
+        try:
+            # Test with shorter timeframe first
+            test_data = fetch_with_retry(
+                test_ticker,
+                start_date=datetime.today() - timedelta(days=5),
+                end_date=datetime.today(),
+                interval="1d"
+            )
             
-    except Exception as e:
-        st.sidebar.error(f"yfinance API test failed: {str(e)}")
-        st.sidebar.warning("Try clearing your browser cache or using a different ticker symbol")
+            if not test_data.empty:
+                st.sidebar.success(f"✅ {test_ticker}: Successfully fetched {len(test_data)} rows")
+                log_debug(f"Test Data for {test_ticker}", test_data)
+                
+                # Verify data quality
+                missing_data = test_data.isnull().sum()
+                if missing_data.sum() > 0:
+                    st.sidebar.warning(f"⚠️ {test_ticker}: Contains some missing values:\n{missing_data}")
+            else:
+                st.sidebar.error(f"❌ {test_ticker}: No data received")
+                
+        except Exception as e:
+            st.sidebar.error(f"❌ {test_ticker}: API test failed: {str(e)}")
+    
+    st.sidebar.info("💡 If tests fail, try another ticker or wait a few minutes before retrying.")
