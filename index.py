@@ -644,83 +644,54 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
     with tabs[0]:
         st.markdown("## Market Overview")
         
+        # First add the modern cards style and container
         st.markdown("""
             <style>
-            .market-summary {
+            .modern-summary {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 1rem;
+                padding: 1rem 0;
+                margin-bottom: 2rem;
+            }
+            .stock-card {
+                flex: 1 1 300px;
                 background: white;
-                border-radius: 8px;
+                border-radius: 10px;
                 box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-                margin: 1.5rem 0;
-                padding: 1rem;
+                padding: 1.5rem;
+                transition: transform 0.2s;
             }
-            .market-table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-bottom: 1rem;
+            .stock-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 8px rgba(0,0,0,0.1);
             }
-            .market-table th, .market-table td {
-                padding: 12px 16px;
-                text-align: left;
-                border-bottom: 1px solid #e5e7eb;
-            }
-            .market-table th {
-                background: #f8f9fa;
+            .stock-symbol {
+                font-size: 1.2rem;
                 font-weight: 600;
-                color: #374151;
-                white-space: nowrap;
+                color: #1a1a1a;
+                margin-bottom: 0.5rem;
             }
-            .market-table td {
-                vertical-align: middle;
+            .stock-prices {
+                font-size: 0.9rem;
+                color: #666;
+                margin-bottom: 0.8rem;
             }
-            .market-table tr:last-child td {
-                border-bottom: none;
-            }
-            .market-table tr:hover {
-                background: #f9fafb;
-            }
-            .market-symbol {
-                font-weight: 600;
-                color: #111827;
-            }
-            .market-price {
-                color: #4b5563;
-            }
-            .market-rec {
+            .stock-recommendation {
                 display: inline-block;
-                padding: 6px 12px;
-                border-radius: 6px;
+                padding: 0.4rem 1rem;
+                border-radius: 20px;
                 font-weight: 500;
+                font-size: 0.9rem;
                 text-align: center;
-                min-width: 100px;
-                border: 1px solid rgba(0,0,0,0.1);
-            }
-            .section-spacer {
-                margin: 2.5rem 0;
-                border-top: 1px solid #e5e7eb;
-            }
-            .historical-header {
-                margin: 2rem 0 1rem 0;
-                color: #111827;
-            }
-            .historical-desc {
-                color: #6b7280;
-                font-size: 0.9em;
-                margin-bottom: 1.5rem;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.1);
             }
             </style>
             
-            <div class="market-summary">
-                <table class="market-table">
-                    <thead>
-                        <tr>
-                            <th style="width: 20%;">Symbol</th>
-                            <th style="width: 45%;">Latest Prices</th>
-                            <th style="width: 35%; text-align: center;">AI Recommendation</th>
-                        </tr>
-                    </thead>
-                    <tbody>
+            <div class="modern-summary">
         """, unsafe_allow_html=True)
-        
+
+        # Add cards for each stock
         for ticker in st.session_state["stock_data"]:
             data = st.session_state["stock_data"][ticker]
             latest_data = data.iloc[-1]
@@ -728,24 +699,30 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             color = RECOMMENDATION_COLORS.get(recommendation, "rgba(128, 128, 128, 0.7)")
             
             st.markdown(f"""
-                <tr>
-                    <td><span class="market-symbol">{ticker}</span></td>
-                    <td class="market-price">Open: {safe_format_price(latest_data['Open'])} · Close: {safe_format_price(latest_data['Close'])}</td>
-                    <td style="text-align: center;"><span class="market-rec" style="background-color: {color}">{recommendation}</span></td>
-                </tr>
+                <div class="stock-card">
+                    <div class="stock-symbol">{ticker}</div>
+                    <div class="stock-prices">
+                        Open: {safe_format_price(latest_data['Open'])} · 
+                        Close: {safe_format_price(latest_data['Close'])}
+                    </div>
+                    <div class="stock-recommendation" style="background-color: {color}">
+                        {recommendation}
+                    </div>
+                </div>
             """, unsafe_allow_html=True)
-        
+
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # Add section spacer
+        st.markdown('<div class="section-spacer"></div>', unsafe_allow_html=True)
+
+        # Continue with Historical Data section
         st.markdown("""
-                </tbody>
-            </table>
-        </div>
-        
-        <div class="section-spacer"></div>
-        <h2 class="historical-header">Historical Price Data</h2>
-        <p class="historical-desc">
-            Expand each symbol below to view detailed historical data and performance metrics.
-            Data includes full price history and calculated statistics for the selected time period.
-        </p>
+            <h2 class="historical-header">Historical Price Data</h2>
+            <p class="historical-desc">
+                Expand each symbol below to view detailed historical data and performance metrics.
+                Data includes full price history and calculated statistics for the selected time period.
+            </p>
         """, unsafe_allow_html=True)
 
         # Add Historical Price Data Section
