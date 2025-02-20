@@ -146,6 +146,8 @@ time_frame_options = {
     "1week": {"interval": "1wk", "days": 730, "max_points": None},
     "1month": {"interval": "1mo", "days": 1825, "max_points": None},
     "3month": {"interval": "3mo", "days": 1825, "max_points": None},
+    "1min": {"interval": "1m", "days": 7, "max_points": None},  
+    "5min": {"interval": "5m", "days": 30, "max_points": None},  
     "15min": {"interval": "15m", "days": 60, "max_points": None},
     "30min": {"interval": "30m", "days": 60, "max_points": None},
     "1hour": {"interval": "1h", "days": 730, "max_points": None},
@@ -155,7 +157,7 @@ time_frame_options = {
 }
 
 def show_timeframe_warning(selected_timeframe):
-    intraday_frames = ["15min", "30min", "1hour", "90min", "2hour", "4hour"]
+    intraday_frames = ["1min", "5min","15min", "30min", "1hour", "90min", "2hour", "4hour"]
     if selected_timeframe in intraday_frames:
         st.sidebar.warning(f"""
         ⚠️ Important Note for {selected_timeframe} timeframe:
