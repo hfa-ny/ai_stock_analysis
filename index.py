@@ -146,7 +146,7 @@ time_frame_options = {
     "1week": {"interval": "1wk", "days": 730, "max_points": None},
     "1month": {"interval": "1mo", "days": 1825, "max_points": None},
     "3month": {"interval": "3mo", "days": 1825, "max_points": None},
-    "1min": {"interval": "1m", "days": 30, "max_points": None},  
+    "1min": {"interval": "1m", "days": 100, "max_points": None},  
     "5min": {"interval": "5m", "days": 150, "max_points": None},  
     "15min": {"interval": "15m", "days": 150, "max_points": None},
     "30min": {"interval": "30m", "days": 150, "max_points": None},
