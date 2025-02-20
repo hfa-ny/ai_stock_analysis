@@ -861,3 +861,33 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
 else:
     st.info("Please fetch stock data using the sidebar.")
 
+# Inside the first with tabs[0]: block, update the style
+st.markdown("""
+    <style>
+    .market-overview {
+        display: flex;
+        flex-flow: row wrap;  /* Changed to wrap to allow responsive layout */
+        gap: 1.5rem;
+        padding: 1rem 0;
+        margin-bottom: 2rem;
+        width: 100%;
+    }
+    .stock-card {
+        flex: 1 1 300px;  /* Allow cards to grow and shrink */
+        min-width: 300px;  /* Minimum width before wrapping */
+        max-width: calc(33.33% - 1rem);  /* Maximum width */
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 1.5rem;
+        transition: all 0.3s ease;
+        position: relative;
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+    .stock-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    </style>
+""", unsafe_allow_html=True)
+
