@@ -84,6 +84,22 @@ def test_yahoo_connection():
     except Exception as e:
         return False, f"Connection error: {str(e)}"
 
+# Add this function after other helper functions
+def get_real_time_quote(ticker):
+    """Get real-time quote data for a ticker"""
+    try:
+        # Get real-time data
+        yf_ticker = yf.Ticker(ticker)
+        real_time = yf_ticker.fast_info
+        
+        return {
+            'current_price': real_time.last_price if hasattr(real_time, 'last_price') else None,
+            'previous_close': real_time.previous_close if hasattr(real_time, 'previous_close') else None,
+            'change_percent': real_time.last_price/real_time.previous_close - 1 if hasattr(real_time, 'last_price') and hasattr(real_time, 'previous_close') else None
+        }
+    except Exception as e:
+        return None
+
 # Configure the API key - Use Streamlit secrets or environment variables for security
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
@@ -700,19 +716,36 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             <div class="modern-summary">
         """, unsafe_allow_html=True)
 
-        # Add cards for each stock
+        # In the card generation section
         for ticker in st.session_state["stock_data"]:
             data = st.session_state["stock_data"][ticker]
             latest_data = data.iloc[-1]
+            real_time = get_real_time_quote(ticker)
             recommendation = next((item["Recommendation"] for item in overall_results if item["Stock"] == ticker), "N/A")
             color = RECOMMENDATION_COLORS.get(recommendation, "rgba(128, 128, 128, 0.7)")
+            
+            # Calculate price change color and symbol
+            change_color = "green"
+            change_symbol = "↑"
+            if real_time and real_time['change_percent']:
+                if real_time['change_percent'] < 0:
+                    change_color = "red"
+                    change_symbol = "↓"
+            
+            current_price = f"${real_time['current_price']:.2f}" if real_time and real_time['current_price'] else "N/A"
+            change_pct = f"{real_time['change_percent']*100:.2f}%" if real_time and real_time['change_percent'] else "N/A"
             
             st.markdown(f"""
                 <div class="stock-card">
                     <div class="stock-symbol">{ticker}</div>
                     <div class="stock-prices">
-                        Open: {safe_format_price(latest_data['Open'])} · 
-                        Close: {safe_format_price(latest_data['Close'])}
+                        Current: {current_price}
+                        <span style="color: {change_color}">
+                            {change_symbol} {change_pct}
+                        </span>
+                    </div>
+                    <div class="stock-details">
+                        Previous Close: {safe_format_price(latest_data['Close'])}
                     </div>
                     <div class="stock-recommendation" style="background-color: {color}">
                         {recommendation}
