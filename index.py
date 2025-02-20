@@ -632,24 +632,61 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
         st.subheader("Overall Structured Recommendations")
         df_summary = pd.DataFrame(overall_results)
         
-        # Create styled HTML table with colored recommendations
+        # Create styled HTML table with colored recommendations using the same colors
         recommendation_colors = {
-            "Strong Buy": "green",
-            "Buy": "lightgreen",
-            "Weak Buy": "palegreen",
-            "Hold": "yellow",
-            "Weak Sell": "pink",
-            "Sell": "lightcoral",
-            "Strong Sell": "red"
+            "Strong Buy": "rgba(0, 128, 0, 0.7)",      # Semi-transparent green
+            "Buy": "rgba(144, 238, 144, 0.7)",         # Semi-transparent lightgreen
+            "Weak Buy": "rgba(152, 251, 152, 0.7)",    # Semi-transparent palegreen
+            "Hold": "rgba(255, 255, 0, 0.7)",          # Semi-transparent yellow
+            "Weak Sell": "rgba(255, 192, 203, 0.7)",   # Semi-transparent pink
+            "Sell": "rgba(240, 128, 128, 0.7)",        # Semi-transparent lightcoral
+            "Strong Sell": "rgba(255, 0, 0, 0.7)",     # Semi-transparent red
+            "Error": "rgba(128, 128, 128, 0.7)",       # Semi-transparent gray
+            "N/A": "rgba(128, 128, 128, 0.7)"          # Semi-transparent gray
         }
         
-        # Create compact HTML without extra whitespace or newlines
-        html_table = '<style>.summary-table{width:100%;border-collapse:collapse;margin:10px 0;font-size:0.9em;}.summary-table th,.summary-table td{padding:8px;text-align:left;border:1px solid #ddd;}.summary-table th{background-color:#f8f9fa;font-weight:bold;}.recommendation-cell{padding:5px 10px;border-radius:4px;color:black;text-align:center;}</style><table class="summary-table"><tr><th>Stock</th><th>Recommendation</th></tr>'
+        # Create HTML table with enhanced styling
+        html_table = '''
+        <style>
+        .summary-table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+        .summary-table th, .summary-table td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #ddd;
+        }
+        .summary-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .recommendation-cell {
+            padding: 5px 10px;
+            border-radius: 4px;
+            color: black;
+            text-align: center;
+            font-weight: 500;
+            border: 1px solid rgba(0,0,0,0.1);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        </style>
+        <table class="summary-table">
+        <tr><th>Stock</th><th>Recommendation</th></tr>
+        '''
         
-        # Add rows without extra formatting
+        # Add rows with enhanced styling
         for _, row in df_summary.iterrows():
-            color = recommendation_colors.get(row['Recommendation'], 'gray')
-            html_table += f'<tr><td>{row["Stock"]}</td><td><div class="recommendation-cell" style="background-color:{color}">{row["Recommendation"]}</div></td></tr>'
+            color = recommendation_colors.get(row['Recommendation'], "rgba(128, 128, 128, 0.7)")
+            html_table += f'''
+            <tr>
+                <td>{row["Stock"]}</td>
+                <td><div class="recommendation-cell" style="background-color:{color}">{row["Recommendation"]}</div></td>
+            </tr>
+            '''
         
         html_table += '</table>'
         st.markdown(html_table, unsafe_allow_html=True)
@@ -685,16 +722,36 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                     open_price = safe_format_price(latest_data.get('Open'))
                     close_price = safe_format_price(latest_data.get('Close'))
                     
+                    # Get the recommendation and its color with improved styling
+                    recommendation = result.get("action", "N/A")
+                    recommendation_colors = {
+                        "Strong Buy": "rgba(0, 128, 0, 0.7)",  # Semi-transparent green
+                        "Buy": "rgba(144, 238, 144, 0.7)",     # Semi-transparent lightgreen
+                        "Weak Buy": "rgba(152, 251, 152, 0.7)", # Semi-transparent palegreen
+                        "Hold": "rgba(255, 255, 0, 0.7)",      # Semi-transparent yellow
+                        "Weak Sell": "rgba(255, 192, 203, 0.7)", # Semi-transparent pink
+                        "Sell": "rgba(240, 128, 128, 0.7)",    # Semi-transparent lightcoral
+                        "Strong Sell": "rgba(255, 0, 0, 0.7)", # Semi-transparent red
+                        "Error": "rgba(128, 128, 128, 0.7)",   # Semi-transparent gray
+                        "N/A": "rgba(128, 128, 128, 0.7)"      # Semi-transparent gray
+                    }
+                    rec_color = recommendation_colors.get(recommendation, "rgba(128, 128, 128, 0.7)")
+                    
                     st.markdown(f"""
                         <h3 style='margin-bottom: 0px;'>
                             Analysis for {ticker}
                             <span style='font-size: 0.8em; font-weight: normal; color: #666;'>
                                 (Open: {open_price} Close: {close_price})
                             </span>
+                            <span style='font-size: 0.8em; margin-left: 10px; padding: 2px 8px; border-radius: 4px; 
+                                background-color: {rec_color}; color: black; border: 1px solid rgba(0,0,0,0.1); 
+                                font-weight: 500; box-shadow: 0 1px 2px rgba(0,0,0,0.1);'>
+                                {recommendation}
+                            </span>
                         </h3>
                     """, unsafe_allow_html=True)
                 except Exception as e:
-                    pass  # Commented out: st.error(f"Error displaying price data: {str(e)})
+                    pass
                     
             # ... rest of the tab display code remains the same ...
 
