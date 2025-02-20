@@ -25,6 +25,16 @@ def safe_format_price(value):
     except (ValueError, TypeError):
         return "N/A"
 
+# After imports, add debug logging
+def log_debug(title, data):
+    st.sidebar.markdown(f"**Debug: {title}**")
+    if isinstance(data, pd.DataFrame):
+        st.sidebar.write(f"Shape: {data.shape}")
+        st.sidebar.write("First few rows:")
+        st.sidebar.write(data.head())
+    else:
+        st.sidebar.write(data)
+
 # Configure the API key - Use Streamlit secrets or environment variables for security
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
@@ -100,7 +110,7 @@ time_frame_options = {
 
 # Add warning for intraday data limitations
 def show_timeframe_warning(selected_timeframe):
-    if selected_timeframe in ["5min", "15min"]:
+    if (selected_timeframe in ["5min", "15min"]):
         st.sidebar.warning(f"""
         ⚠️ Important Note for {selected_timeframe} timeframe:
         - Limited to last {time_frame_options[selected_timeframe]['days']} days only
@@ -153,7 +163,7 @@ def fetch_with_retry(ticker, start_date, end_date, interval, max_retries=3, dela
     
     return pd.DataFrame()  # Return empty DataFrame if all retries failed
 
-# Modify the data fetching part
+# In the "Fetch Data" button click handler, add logging
 if st.sidebar.button("Fetch Data"):
     stock_data = {}
     failed_tickers = []
@@ -163,6 +173,14 @@ if st.sidebar.button("Fetch Data"):
             # Calculate appropriate start date based on selected timeframe
             max_days = time_frame_options[selected_time_frame]["days"]
             interval = time_frame_options[selected_time_frame]["interval"]
+
+            log_debug("Fetch Parameters", {
+                "ticker": ticker,
+                "interval": interval,
+                "max_days": max_days,
+                "start_date": start_date,
+                "end_date": end_date
+            })
 
             # Adjust start date based on timeframe
             adjusted_start_date = datetime.today() - timedelta(days=max_days)
@@ -176,6 +194,8 @@ if st.sidebar.button("Fetch Data"):
                 end_date=end_date,
                 interval=interval
             )
+            
+            log_debug(f"Fetched Data for {ticker}", data)
 
             if not data.empty:
                 stock_data[ticker] = data
@@ -190,6 +210,7 @@ if st.sidebar.button("Fetch Data"):
 
     if stock_data:
         st.session_state["stock_data"] = stock_data
+        log_debug("Session State Data", stock_data)
         st.success(f"Stock data loaded successfully for {len(stock_data)} ticker(s)")
         if failed_tickers:
             st.warning(f"Failed to fetch data for: {', '.join(failed_tickers)}")
@@ -246,11 +267,24 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
     # Define a function to build chart, call the Gemini API and return structured result
     def analyze_ticker(ticker, data, indicators): # **Pass 'indicators' as argument**
         try:
+            # Debug data
+            st.sidebar.write(f"Debug - Data shape for {ticker}: {data.shape}")
+            st.sidebar.write(f"Debug - First few rows of data:")
+            st.sidebar.write(data.head())
+            
+            # Make sure we have the required columns
+            required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+            if not all(col in data.columns for col in required_columns):
+                missing_cols = [col for col in required_columns if col not in data.columns]
+                raise ValueError(f"Missing required columns: {missing_cols}")
+
+            # Ensure data is properly sorted by date
+            data = data.sort_index()
+            
             # Get the max points limit and interval for the selected timeframe
             timeframe_info = time_frame_options[selected_time_frame]
-            max_points = timeframe_info["max_points"]
             interval = timeframe_info["interval"]
-
+            
             if data.empty:
                 st.warning(f"No data available for {ticker} with {interval} interval")
                 empty_fig = go.Figure()
@@ -261,29 +295,21 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 )
                 return empty_fig, {"action": "Error", "justification": "No data available for selected timeframe"}
 
-            # Clean and downsample the data if needed
+            # Clean data - handle NaN values
+            data = data.copy()  # Create a copy to avoid SettingWithCopyWarning
             data = data.dropna()
-            if max_points:
-                original_length = len(data)
-                data = downsample_data(data, max_points)
-                if len(data) < original_length:
-                    st.info(f"Data has been downsampled from {original_length} to {len(data)} points for better performance")
-
-            # Debug information - Removed for cleaner UI, keep for debugging if needed
-            # st.write(f"### Data Information for {ticker}:")
-            # st.write(f"Total rows after processing: {len(data)}")
-
-            # Check if data is empty or invalid
-            if data.empty:
-                st.warning(f"No data found for {ticker}.")
-                # Return empty figure and error message
-                empty_fig = go.Figure()
-                empty_fig.add_annotation(
-                    text="No data available",
-                    xref="paper", yref="paper",
-                    x=0.5, y=0.5, showarrow=False
+            
+            # Build candlestick chart
+            fig = go.Figure(data=[
+                go.Candlestick(
+                    x=data.index,
+                    open=data['Open'],
+                    high=data['High'],
+                    low=data['Low'],
+                    close=data['Close'],
+                    name="Price"
                 )
-                return empty_fig, {"action": "Error", "justification": "No data fetched from yfinance"}
+            ])
 
             # Add this before creating the chart
             if selected_time_frame in ["5min", "15min", "1hour"]:
@@ -553,9 +579,24 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
     overall_results = []
     fig_results = {}
 
+    # In the chart display section, add debug logging and ensure data is passed correctly
     # First loop to collect all analyses
     for ticker in st.session_state["stock_data"]:
         data = st.session_state["stock_data"][ticker]
+        log_debug(f"Pre-analysis data for {ticker}", data)
+        
+        # Convert data to numeric if needed
+        for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
+            if col in data.columns:
+                data[col] = pd.to_numeric(data[col], errors='coerce')
+        
+        # Verify data after conversion
+        log_debug(f"Post-conversion data for {ticker}", data)
+        
+        if data.empty:
+            st.error(f"No valid data for {ticker} after conversion")
+            continue
+            
         fig, result = analyze_ticker(ticker, data, indicators)
         overall_results.append({"Stock": ticker, "Recommendation": result.get("action", "N/A")})
         fig_results[ticker] = (fig, result)
