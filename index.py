@@ -468,7 +468,8 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             # Update layout with more margin and enhanced title
             fig.update_layout(
                 title=dict(
-                    text=f"{ticker} Stock Price (Open: {latest_open} Close: {latest_close})",
+                    # Fix the string formatting for latest prices
+                    text=f"{ticker} Stock Price (Open: ${float(latest_data['Open']):.2f} Close: ${float(latest_data['Close'])::.2f})",
                     y=0.95,  # Move title up
                     x=0.5,
                     xanchor='center',
