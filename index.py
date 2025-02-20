@@ -927,3 +927,72 @@ else:
 #         st.sidebar.success("✅ Direct Yahoo Finance connection test successful")
 #     else:
 #         st.sidebar.error(f"❌ Yahoo Finance connection test failed: {message}")
+
+# Update the Overall Summary tab display code
+# Replace the existing table HTML with this new version
+st.markdown("""
+    <style>
+    .modern-summary {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        padding: 1rem 0;
+    }
+    .stock-card {
+        flex: 1 1 300px;
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        padding: 1rem;
+        transition: transform 0.2s;
+    }
+    .stock-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .stock-symbol {
+        font-size: 1.2rem;
+        font-weight: 600;
+        color: #1a1a1a;
+        margin-bottom: 0.5rem;
+    }
+    .stock-prices {
+        font-size: 0.9rem;
+        color: #666;
+        margin-bottom: 0.8rem;
+    }
+    .stock-recommendation {
+        display: inline-block;
+        padding: 0.4rem 1rem;
+        border-radius: 20px;
+        font-weight: 500;
+        font-size: 0.9rem;
+        text-align: center;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+    </style>
+    
+    <div class="modern-summary">
+""", unsafe_allow_html=True)
+
+# Add cards for each stock
+for ticker in st.session_state["stock_data"]:
+    data = st.session_state["stock_data"][ticker]
+    latest_data = data.iloc[-1]
+    recommendation = next((item["Recommendation"] for item in overall_results if item["Stock"] == ticker), "N/A")
+    color = RECOMMENDATION_COLORS.get(recommendation, "rgba(128, 128, 128, 0.7)")
+    
+    st.markdown(f"""
+        <div class="stock-card">
+            <div class="stock-symbol">{ticker}</div>
+            <div class="stock-prices">
+                Open: {safe_format_price(latest_data['Open'])} · 
+                Close: {safe_format_price(latest_data['Close'])}
+            </div>
+            <div class="stock-recommendation" style="background-color: {color}">
+                {recommendation}
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+st.markdown("</div>", unsafe_allow_html=True)
