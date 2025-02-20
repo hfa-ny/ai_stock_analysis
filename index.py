@@ -206,84 +206,153 @@ def fetch_with_retry(ticker, start_date, end_date, interval, max_retries=3, dela
     """Fetch stock data with retry logic"""
     for attempt in range(max_retries):
         try:
-            # Create a Ticker instance and get history directly
-            tick = yf.Ticker(ticker)
-            
-            # Clear any cached data
-            tick.cache_clear()
-            
-            # Get info first to verify connection
-            try:
-                info = tick.fast_info
-            except:
-                pass  # Skip if info fetch fails
-                
-            # Use period instead of start/end dates for more reliable fetching
-            if isinstance(start_date, datetime):
-                days_diff = (end_date - start_date).days
-            else:
-                days_diff = (end_date - datetime.combine(start_date, datetime.min.time())).days
-                
-            # Convert days to period string
-            if days_diff <= 7:
-                period = "7d"
-            elif days_diff <= 30:
-                period = "1mo"
-            elif days_diff <= 90:
-                period = "3mo"
-            elif days_diff <= 365:
-                period = "1y"
-            else:
-                period = "2y"
-                
-            # Fetch data using period instead of date range
-            data = tick.history(
-                period=period,
+            # Simple, direct approach using just the period parameter
+            data = yf.download(
+                ticker,
+                period="1y",  # Use fixed period first
                 interval=interval,
-                auto_adjust=True,
-                actions=False,
-                prepost=False
+                progress=False,
+                show_errors=False
             )
             
             if not data.empty:
-                # Convert index to datetime if needed
-                if not isinstance(data.index, pd.DatetimeIndex):
-                    data.index = pd.to_datetime(data.index)
-                    
-                # Filter to requested date range after fetching
+                # Filter to the requested date range after successful fetch
                 if isinstance(start_date, datetime):
-                    mask = (data.index >= start_date) & (data.index <= end_date)
+                    start_ts = start_date
                 else:
-                    mask = (data.index >= pd.Timestamp(start_date)) & (data.index <= pd.Timestamp(end_date))
+                    start_ts = pd.Timestamp(start_date)
+                
+                if isinstance(end_date, datetime):
+                    end_ts = end_date
+                else:
+                    end_ts = pd.Timestamp(end_date)
+                
+                mask = (data.index >= start_ts) & (data.index <= end_ts)
                 data = data[mask]
-                
-                # Verify data integrity and convert to numeric
-                for col in ['Open', 'High', 'Low', 'Close', 'Volume']:
-                    if col in data.columns:
-                        data[col] = pd.to_numeric(data[col].astype(str), errors='coerce')
-                
-                # Drop any rows with NaN values after conversion
-                data = data.dropna()
                 
                 if not data.empty:
                     return data
             
-            st.sidebar.warning(f"Attempt {attempt + 1}: No data received for {ticker}, retrying...")
+            # If no data received, try the backup method
+            backup_data = fetch_yahoo_finance_data(ticker, start_date, end_date)
+            if not backup_data.empty:
+                return backup_data
+            
             time.sleep(delay * (attempt + 1))
             
         except Exception as e:
             if attempt == max_retries - 1:
-                raise Exception(f"Failed to fetch data after {max_retries} attempts: {str(e)}")
-            st.sidebar.warning(f"Attempt {attempt + 1} failed: {str(e)}, retrying...")
+                # Final attempt - try the most basic fetch possible
+                try:
+                    data = yf.download(ticker, period="1mo", progress=False)
+                    if not data.empty:
+                        return data
+                except:
+                    pass
+                raise Exception(f"All fetch attempts failed for {ticker}: {str(e)}")
             time.sleep(delay * (attempt + 1))
     
-    st.sidebar.info("Trying backup data source...")
-    backup_data = fetch_yahoo_finance_data(ticker, start_date, end_date)
-    
-    if not backup_data.empty:
-        return backup_data
-    
     return pd.DataFrame()
+
+# Configure the API key - Use Streamlit secrets or environment variables for security
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+
+# Select the Gemini model - using 'gemini-2.0-flash' as a general-purpose model
+MODEL_NAME = 'gemini-2.0-flash'
+gen_model = genai.GenerativeModel(MODEL_NAME)
+
+# Update the page config and title section
+st.set_page_config(layout="wide", initial_sidebar_state="expanded")
+
+# Add custom CSS to fix header spacing
+st.markdown("""
+    <style>
+        .block-container {
+            padding-top: 3rem !important;
+            padding-bottom: 1rem !important;
+        }
+        header {
+            margin-bottom: 2rem !important;
+        }
+        .main > div {
+            padding-left: 2rem !important;
+            padding-right: 2rem !important;
+        }
+        .financial-metrics {
+            font-size: 0.8rem !important;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            justify-content: space-between;
+        }
+        .metric-item {
+            flex: 1 1 auto;
+            min-width: 120px;
+            padding: 0.3rem;
+        }
+        .metric-label {
+            color: #666;
+            font-size: 0.7rem !important;
+        }
+        .metric-value {
+            font-weight: bold;
+            font-size: 0.8rem !important;
+        }
+        #MainMenu {visibility: visible;}
+        header {visibility: visible;}
+        footer {visibility: hidden;}
+    </style>
+""", unsafe_allow_html=True)
+
+st.title("HFA AI-Powered Technical Stock Analysis")
+st.sidebar.header("Configuration")
+
+# Input for multiple stock tickers (comma-separated)
+tickers_input = st.sidebar.text_input("Enter Stock Tickers (comma-separated):", "AAPL,^GSPC")
+tickers = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
+
+# Set the date range: default is one year before today to today
+end_date_default = datetime.today()
+start_date_default = end_date_default - timedelta(days=365)
+start_date = st.sidebar.date_input("Start Date", value=start_date_default)
+end_date = st.sidebar.date_input("End Date", value=end_date_default)
+
+# --- New: Time Frame Selection ---
+# Update the time frame options with more conservative settings
+time_frame_options = {
+    "1day": {"interval": "1d", "days": 365, "max_points": None},
+    "5day": {"interval": "5d", "days": 365, "max_points": None},
+    "1week": {"interval": "1wk", "days": 730, "max_points": None},
+    "1month": {"interval": "1mo", "days": 1825, "max_points": None},
+    "3month": {"interval": "3mo", "days": 1825, "max_points": None}
+}
+
+# Add warning for intraday data limitations
+def show_timeframe_warning(selected_timeframe):
+    if (selected_timeframe in ["5min", "15min"]):
+        st.sidebar.warning(f"""
+        ⚠️ Important Note for {selected_timeframe} timeframe:
+        - Limited to last {time_frame_options[selected_timeframe]['days']} days only
+        - Data might be delayed or limited
+        - May not work outside market hours
+        """)
+
+# Update the sidebar selection with new timeframes
+selected_time_frame = st.sidebar.selectbox(
+    "Select Time Frame",
+    list(time_frame_options.keys()),
+    index=list(time_frame_options.keys()).index("1day") 
+)
+show_timeframe_warning(selected_time_frame)
+
+# Technical indicators selection (applied to every ticker)
+st.sidebar.subheader("Technical Indicators")
+# Update the indicators selection list
+indicators = st.sidebar.multiselect(
+    "Select Indicators:",
+    ["20-Day SMA", "20-Day EMA", "20-Day Bollinger Bands", "VWAP", "RSI"],  # Added RSI
+    default=["20-Day SMA"]
+)
 
 # In the "Fetch Data" button click handler, add logging
 if st.sidebar.button("Fetch Data"):
