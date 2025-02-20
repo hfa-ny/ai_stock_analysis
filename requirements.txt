@@ -4,3 +4,4 @@ pandas==2.2.3
 plotly==6.0.0
 google-generativeai==0.8.4
 kaleido==0.2.1
+pandas_market_calendars==4.3.1
