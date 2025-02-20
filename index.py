@@ -134,7 +134,7 @@ tickers_input = st.sidebar.text_input("Enter Stock Tickers (comma-separated):", 
 tickers = [ticker.strip().upper() for ticker in tickers_input.split(",") if ticker.strip()]
 
 # Date range selection
-end_date_default = datetime.today()
+end_date_default = datetime.today() + timedelta(days=1)  # Add one day to include today's data
 start_date_default = end_date_default - timedelta(days=365)
 start_date = st.sidebar.date_input("Start Date", value=start_date_default)
 end_date = st.sidebar.date_input("End Date", value=end_date_default)
