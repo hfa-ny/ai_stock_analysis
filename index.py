@@ -314,14 +314,28 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             # Initial data validation
             if data is None or data.empty:
                 raise ValueError(f"No data available for {ticker}")
-                
+            
+            # Ensure numeric data types
+            numeric_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+            for col in numeric_columns:
+                if col in data.columns:
+                    if not pd.api.types.is_numeric_dtype(data[col]):
+                        # Convert to string first to handle any data type
+                        data[col] = pd.to_numeric(data[col].astype(str), errors='coerce')
+            
+            # Drop any NaN values after conversion
+            data = data.dropna(subset=numeric_columns)
+                    
             # Convert index to datetime if not already
             if not isinstance(data.index, pd.DatetimeIndex):
                 data.index = pd.to_datetime(data.index)
-                
+            
             # Sort data by date and remove duplicates
             data = data.sort_index().loc[~data.index.duplicated(keep='first')]
             
+            if data.empty:
+                raise ValueError(f"No valid numeric data available for {ticker} after cleaning")
+                
             # Build candlestick chart with validation
             candlestick = go.Candlestick(
                 x=data.index,
