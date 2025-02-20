@@ -348,9 +348,7 @@ if st.sidebar.button("Fetch Data"):
 
             if not data.empty:
                 stock_data[ticker] = data
-                st.success(f"Successfully fetched {len(data)} rows for {ticker}", icon="✅")
-                time.sleep(3)
-                st.experimental_rerun()
+                st.success(f"Successfully fetched {len(data)} rows for {ticker}")
             else:
                 failed_tickers.append(ticker)
                 st.warning(f"No data found for {ticker}. The symbol might be incorrect or delisted.")
