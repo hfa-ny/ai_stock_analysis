@@ -15,6 +15,16 @@ from concurrent.futures import ThreadPoolExecutor
 import pandas_market_calendars as mcal
 import requests.exceptions
 
+# Add this helper function at the top of the file, after imports
+def safe_format_price(value):
+    """Safely format price values from Series"""
+    try:
+        if pd.isna(value):
+            return "N/A"
+        return f"${float(value):.2f}"
+    except (ValueError, TypeError):
+        return "N/A"
+
 # Configure the API key - Use Streamlit secrets or environment variables for security
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
@@ -460,25 +470,23 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
                 add_indicator(ind)
 
             # Update the chart title and layout in analyze_ticker function
-            # Get latest prices
+            # Get latest prices and use safe formatting
             latest_data = data.iloc[-1]
-            latest_open = f"${latest_data['Open']:.2f}"
-            latest_close = f"${latest_data['Close']:.2f}"
+            latest_open = safe_format_price(latest_data['Open'])
+            latest_close = safe_format_price(latest_data['Close'])
             
-            # Update layout with more margin and enhanced title
+            # Update layout with safely formatted values
             fig.update_layout(
                 title=dict(
-                    # Fix the string formatting for latest prices
-                    text=f"{ticker} Stock Price (Open: ${float(latest_data['Open']):.2f} Close: ${float(latest_data['Close'])::.2f})",
-                    y=0.95,  # Move title up
+                    text=f"{ticker} Stock Price (Open: {latest_open} Close: {latest_close})",
+                    y=0.95,
                     x=0.5,
                     xanchor='center',
                     yanchor='top',
-                    pad=dict(b=20),  # Add bottom padding
-                    font=dict(size=12)  # Set font size to be smaller
+                    pad=dict(b=20),
+                    font=dict(size=12)
                 ),
-                margin=dict(t=80, b=50, l=50, r=50),  # Increase top margin
-                # ...rest of your layout settings...
+                margin=dict(t=80, b=50, l=50, r=50)
             )
 
             # Save chart as temporary PNG file and read image bytes
@@ -599,9 +607,9 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
             col1, col2 = st.columns([3, 2])
             with col1:
                 latest_data = current_data.iloc[-1]  # Use current stock's data
-                # Format the numeric values explicitly
-                open_price = f"${latest_data['Open']:.2f}" if isinstance(latest_data['Open'], (int, float)) else "N/A"
-                close_price = f"${latest_data['Close']:.2f}" if isinstance(latest_data['Close'], (int, float)) else "N/A"
+                # Fix the string formatting by explicitly converting to float
+                open_price = safe_format_price(latest_data['Open'])
+                close_price = safe_format_price(latest_data['Close'])
                 
                 st.markdown(f"""
                     <h3 style='margin-bottom: 0px;'>
