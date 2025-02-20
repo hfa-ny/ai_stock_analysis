@@ -85,45 +85,32 @@ def test_yahoo_connection():
         return False, f"Connection error: {str(e)}"
 
 # Add this function after other helper functions
-def get_real_time_quote(ticker):
-    """Get real-time quote data for a ticker"""
-    try:
-        # Try first method - fast_info
-        yf_ticker = yf.Ticker(ticker)
-        
-        # Get current market price using different methods
+@st.cache_data(ttl=60)  # Cache for 60 seconds
+def get_real_time_quote(ticker, max_retries=3):
+    """Get real-time quote data with caching"""
+    for attempt in range(max_retries):
         try:
-            # Method 1: Try to get live price
-            live_price = yf_ticker.info.get('regularMarketPrice')
-            prev_close = yf_ticker.info.get('regularMarketPreviousClose')
+            if attempt > 0:
+                time.sleep(2 * attempt)
             
-            if not live_price:
-                # Method 2: Try fast_info
-                live_price = yf_ticker.fast_info.last_price
-                prev_close = yf_ticker.fast_info.previous_close
-                
-            if not live_price:
-                # Method 3: Try getting today's data
-                today_data = yf_ticker.history(period='1d', interval='1m')
-                if not today_data.empty:
-                    live_price = today_data['Close'].iloc[-1]
-                    prev_close = yf_ticker.history(period='2d')['Close'].iloc[-2]
+            yf_ticker = yf.Ticker(ticker)
             
-            if live_price and prev_close:
-                change_percent = (live_price - prev_close) / prev_close
+            # Try single API call to get all needed data
+            info = yf_ticker.fast_info  # Use fast_info instead of multiple calls
+            
+            if hasattr(info, 'last_price') and hasattr(info, 'previous_close'):
                 return {
-                    'current_price': live_price,
-                    'previous_close': prev_close,
-                    'change_percent': change_percent
+                    'current_price': info.last_price,
+                    'previous_close': info.previous_close,
+                    'change_percent': (info.last_price / info.previous_close - 1)
                 }
-            
+                
         except Exception as e:
-            st.sidebar.warning(f"Error fetching real-time data for {ticker}: {str(e)}")
-            
-        return None
-        
-    except Exception as e:
-        return None
+            if attempt == max_retries - 1:
+                return None
+            continue
+    
+    return None
 
 # Configure the API key - Use Streamlit secrets or environment variables for security
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
@@ -742,9 +729,16 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
         """, unsafe_allow_html=True)
 
         # In the card generation section
+        @st.cache_resource(ttl=300)  # Cache ticker objects for 5 minutes
+        def get_cached_ticker(ticker):
+            """Cache yfinance Ticker objects"""
+            return yf.Ticker(ticker)
+
         for ticker in st.session_state["stock_data"]:
             data = st.session_state["stock_data"][ticker]
             latest_data = data.iloc[-1]
+            
+            # Use cached real-time quote
             real_time = get_real_time_quote(ticker)
             recommendation = next((item["Recommendation"] for item in overall_results if item["Stock"] == ticker), "N/A")
             color = RECOMMENDATION_COLORS.get(recommendation, "rgba(128, 128, 128, 0.7)")
