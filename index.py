@@ -860,3 +860,98 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
 
 else:
     st.info("Please fetch stock data using the sidebar.")
+
+# In the Display Overall Summary tab section
+with tabs[0]:
+    st.markdown("## Market Overview")
+    
+    # First add the modern cards style
+    st.markdown("""
+        <style>
+        .market-overview {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            padding: 1rem 0;
+            margin-bottom: 2rem;
+            width: 100%;
+        }
+        .stock-card {
+            flex: 1 1 300px;
+            max-width: 400px;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 1.5rem;
+            transition: all 0.3s ease;
+            position: relative;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        .stock-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .stock-symbol {
+            font-size: 1.4rem;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 1rem;
+        }
+        .stock-details {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1.2rem;
+            font-size: 1rem;
+            color: #666;
+        }
+        .price-change {
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 1rem;
+        }
+        .recommendation-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 0.5rem;
+            width: auto;
+        }
+        </style>
+        
+        <div class="market-overview">
+    """, unsafe_allow_html=True)
+    
+    # Add cards for each stock
+    for ticker in st.session_state["stock_data"]:
+        data = st.session_state["stock_data"][ticker]
+        latest_data = data.iloc[-1]
+        prev_data = data.iloc[-2] if len(data) > 1 else latest_data
+        
+        # Calculate price change
+        price_change = ((latest_data['Close'] - prev_data['Close']) / prev_data['Close']) * 100
+        price_change_color = "green" if price_change >= 0 else "red"
+        
+        recommendation = next((item["Recommendation"] for item in overall_results if item["Stock"] == ticker), "N/A")
+        color = RECOMMENDATION_COLORS.get(recommendation, "rgba(128, 128, 128, 0.7)")
+        
+        st.markdown(f"""
+            <div class="stock-card">
+                <div class="stock-symbol">{ticker}</div>
+                <div class="stock-details">
+                    <span>Open: {safe_format_price(latest_data['Open'])}</span>
+                    <span>Close: {safe_format_price(latest_data['Close'])}</span>
+                </div>
+                <div class="price-change" style="color: {price_change_color}">
+                    Change: {price_change:+.2f}%
+                </div>
+                <div class="recommendation-badge" style="background-color: {color}">
+                    {recommendation}
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("</div>", unsafe_allow_html=True)
