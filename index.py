@@ -748,6 +748,38 @@ if "stock_data" in st.session_state and st.session_state["stock_data"]:
         </p>
         """, unsafe_allow_html=True)
 
+        # Add Historical Price Data Section
+        for ticker in st.session_state["stock_data"]:
+            data = st.session_state["stock_data"][ticker]
+            with st.expander(f"Historical Data - {ticker}"):
+                # Calculate basic statistics
+                stats = pd.DataFrame({
+                    'Open': [data['Open'].min(), data['Open'].max(), data['Open'].mean()],
+                    'High': [data['High'].min(), data['High'].max(), data['High'].mean()],
+                    'Low': [data['Low'].min(), data['Low'].max(), data['Low'].mean()],
+                    'Close': [data['Close'].min(), data['Close'].max(), data['Close'].mean()],
+                    'Volume': [data['Volume'].min(), data['Volume'].max(), data['Volume'].mean()]
+                }, index=['Min', 'Max', 'Average'])
+                
+                # Format the statistics
+                for col in stats.columns:
+                    if col != 'Volume':
+                        stats[col] = stats[col].apply(lambda x: f"${x:.2f}")
+                    else:
+                        stats[col] = stats[col].apply(lambda x: f"{x:,.0f}")
+                
+                # Display statistics
+                st.markdown("### Key Statistics")
+                st.dataframe(stats, use_container_width=True)
+                
+                # Display raw data with formatting
+                st.markdown("### Historical Data")
+                formatted_data = data.copy()
+                for col in ['Open', 'High', 'Low', 'Close']:
+                    formatted_data[col] = formatted_data[col].apply(lambda x: f"${x:.2f}")
+                formatted_data['Volume'] = formatted_data['Volume'].apply(lambda x: f"{x:,.0f}")
+                st.dataframe(formatted_data, use_container_width=True)
+
     # Display individual stock tabs section
     for i, ticker in enumerate(st.session_state["stock_data"]):
         with tabs[i + 1]:
